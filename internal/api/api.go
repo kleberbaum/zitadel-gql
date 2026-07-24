@@ -169,18 +169,8 @@ func (a *API) serverReflection() {
 // used for v1 api (system, admin, mgmt, auth)
 func (a *API) RegisterServer(ctx context.Context, grpcServer server.WithGatewayPrefix, tlsConfig *tls.Config) error {
 	grpcServer.RegisterServer(a.grpcServer)
-	handler, prefix, err := server.CreateGatewayWithPrefix(
-		ctx,
-		grpcServer,
-		a.port,
-		a.hostHeaders,
-		a.accessInterceptor,
-		tlsConfig,
-	)
-	if err != nil {
-		return err
-	}
-	a.RegisterHandlerOnPrefix(prefix, handler)
+	// walther patch: the per-service v1 REST gateways (management, admin, auth,
+	// system) are not created or mounted, the services stay gRPC and gRPC-Web only.
 	a.verifier.RegisterServer(grpcServer.AppName(), grpcServer.MethodPrefix(), grpcServer.AuthMethods())
 	a.healthServer.SetServingStatus(grpcServer.MethodPrefix(), healthpb.HealthCheckResponse_SERVING)
 	return nil
@@ -197,12 +187,8 @@ func (a *API) RegisterService(ctx context.Context, srv server.Server) error {
 	case server.ConnectServer:
 		a.registerConnectServer(service)
 	}
-	if withGateway, ok := srv.(server.WithGateway); ok {
-		err := server.RegisterGateway(ctx, a.grpcGateway, withGateway)
-		if err != nil {
-			return err
-		}
-	}
+	// walther patch: no REST bindings are registered on the shared grpc-gateway,
+	// the v2 and newer services serve Connect, gRPC and gRPC-Web only.
 	a.verifier.RegisterServer(srv.AppName(), srv.MethodPrefix(), srv.AuthMethods())
 	a.healthServer.SetServingStatus(srv.MethodPrefix(), healthpb.HealthCheckResponse_SERVING)
 	return nil
@@ -283,9 +269,8 @@ func (a *API) RouteGRPC() {
 		Handler(a.grpcServer)
 
 	a.routeGRPCWeb()
-	a.router.NewRoute().
-		Handler(a.grpcGateway.Handler()).
-		Name("grpc-gateway")
+	// walther patch: the shared grpc-gateway catch-all is not mounted, every
+	// REST-transcoded path answers 404 from the router's default handler.
 }
 
 func (a *API) routeGRPCWeb() {
