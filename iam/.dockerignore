@@ -1,0 +1,13 @@
+# Keep the host toolchain and local state out of the build context.
+# The hermetic node_modules is installed inside the image, so the host tree
+# (native binaries for the build host's arch) must never overwrite it.
+node_modules/
+.pylon/
+.wrangler/
+.git/
+.env
+.env.*
+*.log
+
+# src/proto is required in the context (the build needs the generated client),
+# so it is deliberately not ignored here.

@@ -1,0 +1,21 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "iam"
+main = ".pylon/index.js"
+compatibility_date = "2025-11-18"
+compatibility_flags = ["nodejs_compat"]
+
+[observability.logs]
+enabled = true
+
+# Pylon's dist reaches its build-time chunk, which imports ts-morph. That
+# path never executes in the Worker, but wrangler's bundler must resolve it.
+[alias]
+ts-morph = "./src/shims/ts-morph.cjs"
+
+# Plaintext configuration only. AUTH_KEY (the introspection app key JSON)
+# is a Worker secret:
+#   wrangler secret put AUTH_KEY
+# Optional secrets/vars: ZITADEL_BASE_URL (falls back to AUTH_ISSUER),
+# ZITADEL_ORG_ID (default x-zitadel-orgid header).
+[vars]
+AUTH_ISSUER = "https://accounts.lens.walther.exp.univie.ac.at"
