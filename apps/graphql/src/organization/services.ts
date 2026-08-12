@@ -12,15 +12,15 @@ import {OrgState, DomainValidationType} from '../relay/types'
 import {
   ListOrganizationsRequestSchema,
   ListOrganizationDomainsRequestSchema
-} from '../proto/zitadel/org/v2/org_service_pb'
-import type {Organization as ProtoOrganization, Domain as ProtoDomain} from '../proto/zitadel/org/v2/org_pb'
-import {OrganizationState, DomainValidationType as ProtoDomainValidationType} from '../proto/zitadel/org/v2/org_pb'
+} from '@zitadel/proto/zitadel/org/v2/org_service_pb'
+import type {Organization as ProtoOrganization, Domain as ProtoDomain} from '@zitadel/proto/zitadel/org/v2/org_pb'
+import {OrganizationState, DomainValidationType as ProtoDomainValidationType} from '@zitadel/proto/zitadel/org/v2/org_pb'
 import {
   SearchQuerySchema as OrgSearchQuerySchema,
   OrganizationIDQuerySchema
-} from '../proto/zitadel/org/v2/query_pb'
-import {ListQuerySchema} from '../proto/zitadel/object/v2/object_pb'
-import {PaginationRequestSchema} from '../proto/zitadel/filter/v2/filter_pb'
+} from '@zitadel/proto/zitadel/org/v2/query_pb'
+import {ListQuerySchema} from '@zitadel/proto/zitadel/object/v2/object_pb'
+import {PaginationRequestSchema} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
 
 /**
  * Maps a proto Organization to the entity class.

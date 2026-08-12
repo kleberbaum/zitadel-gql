@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# pylon build output
+.pylon/
+
+# Generated protobuf clients are NOT generated here any more: they come from
+# the workspace package @zitadel/proto, which generates once from ../../proto
+# for the whole monorepo (same as apps/login).
+
+# wrangler
+.wrangler/
+
+# env files
+.env
+.env.*
+
+# logs
+*.log

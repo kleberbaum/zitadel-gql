@@ -13,10 +13,10 @@ import {
   GetProjectRequestSchema,
   ListProjectsRequestSchema,
   ListProjectRolesRequestSchema
-} from '../proto/zitadel/project/v2/project_service_pb'
-import type {Project as ProtoProject, ProjectRole as ProtoProjectRole} from '../proto/zitadel/project/v2/query_pb'
-import {ProjectState as ProtoProjectState} from '../proto/zitadel/project/v2/query_pb'
-import {PaginationRequestSchema} from '../proto/zitadel/filter/v2/filter_pb'
+} from '@zitadel/proto/zitadel/project/v2/project_service_pb'
+import type {Project as ProtoProject, ProjectRole as ProtoProjectRole} from '@zitadel/proto/zitadel/project/v2/query_pb'
+import {ProjectState as ProtoProjectState} from '@zitadel/proto/zitadel/project/v2/query_pb'
+import {PaginationRequestSchema} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
 
 /**
  * Maps a proto Project to the entity class. The old v2beta fields

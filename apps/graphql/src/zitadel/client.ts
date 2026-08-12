@@ -5,14 +5,14 @@ import {createConnectTransport} from '@connectrpc/connect-web'
 import {getContext, getEnv} from '@getcronit/pylon'
 
 // Generated service descriptors (protoc-gen-es v2, services as GenService)
-import {UserService} from '../proto/zitadel/user/v2/user_service_pb'
-import {OrganizationService} from '../proto/zitadel/org/v2/org_service_pb'
-import {SessionService} from '../proto/zitadel/session/v2/session_service_pb'
-import {ProjectService} from '../proto/zitadel/project/v2/project_service_pb'
-import {AuthorizationService} from '../proto/zitadel/authorization/v2/authorization_service_pb'
-import {IdentityProviderService} from '../proto/zitadel/idp/v2/idp_service_pb'
-import {ApplicationService} from '../proto/zitadel/application/v2/application_service_pb'
-import {GroupService} from '../proto/zitadel/group/v2/group_service_pb'
+import {UserService} from '@zitadel/proto/zitadel/user/v2/user_service_pb'
+import {OrganizationService} from '@zitadel/proto/zitadel/org/v2/org_service_pb'
+import {SessionService} from '@zitadel/proto/zitadel/session/v2/session_service_pb'
+import {ProjectService} from '@zitadel/proto/zitadel/project/v2/project_service_pb'
+import {AuthorizationService} from '@zitadel/proto/zitadel/authorization/v2/authorization_service_pb'
+import {IdentityProviderService} from '@zitadel/proto/zitadel/idp/v2/idp_service_pb'
+import {ApplicationService} from '@zitadel/proto/zitadel/application/v2/application_service_pb'
+import {GroupService} from '@zitadel/proto/zitadel/group/v2/group_service_pb'
 
 // Custom fetch for Cloudflare Workers compatibility.
 // Workers don't support redirect: 'error', only 'follow' or 'manual'.

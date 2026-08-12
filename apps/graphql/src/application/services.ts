@@ -14,14 +14,14 @@ import {ApplicationState} from '../relay/types'
 import {
   GetApplicationRequestSchema,
   ListApplicationsRequestSchema
-} from '../proto/zitadel/application/v2/application_service_pb'
+} from '@zitadel/proto/zitadel/application/v2/application_service_pb'
 import {
   ApplicationSearchFilterSchema,
   ProjectIDFilterSchema,
   ApplicationState as ProtoApplicationState
-} from '../proto/zitadel/application/v2/application_pb'
-import type {Application as ProtoApplication} from '../proto/zitadel/application/v2/application_pb'
-import {PaginationRequestSchema} from '../proto/zitadel/filter/v2/filter_pb'
+} from '@zitadel/proto/zitadel/application/v2/application_pb'
+import type {Application as ProtoApplication} from '@zitadel/proto/zitadel/application/v2/application_pb'
+import {PaginationRequestSchema} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
 
 /**
  * Maps a proto Application to the entity class. The configuration oneof was

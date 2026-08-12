@@ -36,8 +36,8 @@ import {
   verifyEmail as zitadelVerifyEmail
 } from '../zitadel/users'
 
-import type {User as ProtoUser} from '../proto/zitadel/user/v2/user_pb'
-import {UserState as ProtoUserState} from '../proto/zitadel/user/v2/user_pb'
+import type {User as ProtoUser} from '@zitadel/proto/zitadel/user/v2/user_pb'
+import {UserState as ProtoUserState} from '@zitadel/proto/zitadel/user/v2/user_pb'
 
 import {HumanUser} from './HumanUser'
 import {MachineUser} from './MachineUser'

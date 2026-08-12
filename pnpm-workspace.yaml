@@ -7,6 +7,13 @@ packages:
 
 exclude:
   - benchmark # because of the node 18 or 20 dependency
+  # apps/graphql is a bun/Pylon app and resolves its own dependencies with
+  # bun. It cannot join this workspace, because the security overrides below
+  # raise @opentelemetry/core to 2.x while Pylon's Sentry stack still reads
+  # 1.x symbols from it, and the app dies at import. It still consumes
+  # @zitadel/proto from packages/ by path, so the generated clients and the
+  # server binary remain one codegen and one commit.
+  - apps/graphql
 
 overrides:
   "tar@<7.5.16": "^7.5.16 <8.0.0"
@@ -39,3 +46,4 @@ overrides:
   "uuid@<11.1.1": "^11.1.1"
   "@babel/core@<=7.29.0": "^7.29.6"
   "@opentelemetry/core@<2.8.0": "^2.8.0"
+

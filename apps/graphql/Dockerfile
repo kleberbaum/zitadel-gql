@@ -1,10 +1,11 @@
-# Bun runtime image for the iam GraphQL facade.
-# Build context requirement: src/proto must exist before building the image.
-# Run `bun run generate` (network) or restore the offline proto export first,
-# see the README section on proto generation.
+# Bun runtime image for the GraphQL facade.
+#
+# Build context requirement: the workspace package packages/zitadel-proto must
+# be generated first (pnpm --filter @zitadel/proto generate), because this app
+# consumes it by path rather than generating protobuf clients of its own.
 FROM oven/bun:1 AS base
 
-WORKDIR /usr/src/iam
+WORKDIR /usr/src/graphql
 
 # install dependencies into a temp directory to cache them
 FROM base AS install
@@ -34,8 +35,8 @@ ENV NODE_ENV=production
 # pylon ever adds a runtime phone-home.
 ENV PYLON_DISABLE_TELEMETRY=1
 COPY --from=install /temp/prod/node_modules node_modules
-COPY --from=build /usr/src/iam/.pylon .pylon
-COPY --from=build /usr/src/iam/package.json .
+COPY --from=build /usr/src/graphql/.pylon .pylon
+COPY --from=build /usr/src/graphql/package.json .
 
 USER bun
 EXPOSE 3000/tcp

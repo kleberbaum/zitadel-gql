@@ -8,10 +8,10 @@ import {PageInfo} from '../relay/PageInfo'
 import {encodeCursor} from '../relay/relay'
 import type {RelayArgs} from '../relay/types'
 import {SessionState} from '../relay/types'
-import {GetSessionRequestSchema, ListSessionsRequestSchema} from '../proto/zitadel/session/v2/session_service_pb'
-import type {Session as ProtoSession} from '../proto/zitadel/session/v2/session_pb'
-import {SearchQuerySchema, UserIDQuerySchema} from '../proto/zitadel/session/v2/session_pb'
-import {ListQuerySchema} from '../proto/zitadel/object/v2/object_pb'
+import {GetSessionRequestSchema, ListSessionsRequestSchema} from '@zitadel/proto/zitadel/session/v2/session_service_pb'
+import type {Session as ProtoSession} from '@zitadel/proto/zitadel/session/v2/session_pb'
+import {SearchQuerySchema, UserIDQuerySchema} from '@zitadel/proto/zitadel/session/v2/session_pb'
+import {ListQuerySchema} from '@zitadel/proto/zitadel/object/v2/object_pb'
 
 /**
  * Maps a proto Session to the entity class.

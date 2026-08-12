@@ -1,12 +1,11 @@
 {
-  "name": "iam",
+  "name": "@zitadel/graphql",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "GraphQL facade over Zitadel for the Walther estate. Consumers only ever see GraphQL, never Zitadel.",
   "license": "EUPL-1.2",
   "scripts": {
-    "generate": "buf generate",
     "build": "PYLON_DISABLE_TELEMETRY=1 bun ./node_modules/@getcronit/pylon-dev/dist/index.js build",
     "dev": "PYLON_DISABLE_TELEMETRY=1 bun ./node_modules/@getcronit/pylon-dev/dist/index.js dev",
     "typecheck": "tsc --noEmit",
@@ -20,11 +19,12 @@
     "graphql": "16.9.0"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.13.0",
-    "@connectrpc/connect": "^2.1.2",
-    "@connectrpc/connect-web": "^2.1.2",
+    "@bufbuild/protobuf": "2.12.0",
+    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect-web": "^2.1.1",
     "@getcronit/pylon": "3.0.0-canary-20260518070904.53bffd061c32775b53c69b81d42bb9230d5214dc",
-    "graphql": "16.9.0"
+    "graphql": "16.9.0",
+    "@zitadel/proto": "file:../../packages/zitadel-proto"
   },
   "devDependencies": {
     "@getcronit/pylon-dev": "2.0.0-canary-20260518070904.53bffd061c32775b53c69b81d42bb9230d5214dc",

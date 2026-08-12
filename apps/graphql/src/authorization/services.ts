@@ -8,10 +8,10 @@ import {PageInfo} from '../relay/PageInfo'
 import {encodeCursor} from '../relay/relay'
 import type {RelayArgs} from '../relay/types'
 import {AuthorizationState} from './types'
-import {ListAuthorizationsRequestSchema} from '../proto/zitadel/authorization/v2/authorization_service_pb'
-import {AuthorizationsSearchFilterSchema, State as ProtoState} from '../proto/zitadel/authorization/v2/authorization_pb'
-import type {Authorization as ProtoAuthorization} from '../proto/zitadel/authorization/v2/authorization_pb'
-import {PaginationRequestSchema, InIDsFilterSchema} from '../proto/zitadel/filter/v2/filter_pb'
+import {ListAuthorizationsRequestSchema} from '@zitadel/proto/zitadel/authorization/v2/authorization_service_pb'
+import {AuthorizationsSearchFilterSchema, State as ProtoState} from '@zitadel/proto/zitadel/authorization/v2/authorization_pb'
+import type {Authorization as ProtoAuthorization} from '@zitadel/proto/zitadel/authorization/v2/authorization_pb'
+import {PaginationRequestSchema, InIDsFilterSchema} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
 
 /**
  * Maps a proto Authorization to the entity class. At v4 the proto carries

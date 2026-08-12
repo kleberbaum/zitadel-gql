@@ -18,17 +18,26 @@ through the generated Connect clients.
 
 ## Where this lives
 
-**Here, in `kleberbaum/zitadel-gql`, next to the server it fronts.** This is
-the repository that gets deployed at the university, so the facade and the
-Zitadel it talks to are one artifact with one history. There is no second
-home and no vendored copy to keep in step.
+**Here, at `apps/graphql` in `kleberbaum/zitadel-gql`, inside the monorepo it
+is part of.** This is the tree that gets deployed at the university, so the
+facade, the server it fronts and the protos all three describe share one
+history. It sits alongside `apps/login` and `console`, which is what it is: a
+first-class app of this repository, not an add-on.
 
-That placement removes a class of drift by construction. The generated Connect
-clients come from `../proto` in this same tree (see `buf.gen.yaml`), so they
-cannot describe a different API version than the server ships: both are the
-same commit. Before the move, codegen pulled a pinned tarball of this fork
-over HTTP, which meant a commit sha maintained by hand in a second repository
-and a codegen step that needed the network.
+It generates **no** protobuf clients of its own. It consumes
+`packages/zitadel-proto`, the same workspace package `apps/login` uses, which
+generates once from `../../proto` for the whole monorepo. Two consequences
+follow. The clients cannot describe a different API version than the server
+ships, because one codegen feeds both. And the bundle shrank from 2.9 MB to
+729 KB, because it now carries only the messages it actually imports instead
+of a private copy of all 169 generated files.
+
+One deliberate exception: the app is listed under `exclude` in
+`pnpm-workspace.yaml` and resolves its runtime dependencies with `bun`. The
+workspace's security overrides raise `@opentelemetry/core` to 2.x while
+Pylon's Sentry stack still reads 1.x symbols from it, so joining the workspace
+makes the app die at import. It consumes `@zitadel/proto` by path instead,
+which keeps the single-codegen property that matters.
 
 An older, pre-Pylon-v3 generation of this code exists at `netsnek/iam`. It is
 **not** an upstream of this one and nothing is folded back into it: it predates

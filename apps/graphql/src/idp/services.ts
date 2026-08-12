@@ -6,9 +6,9 @@ import {tsToIso} from '../zitadel/users'
 import {IDP, IDPConnection, IDPEdge} from './IDP'
 import {PageInfo} from '../relay/PageInfo'
 import type {RelayArgs} from '../relay/types'
-import {GetIDPByIDRequestSchema} from '../proto/zitadel/idp/v2/idp_service_pb'
-import type {IDP as ProtoIDP} from '../proto/zitadel/idp/v2/idp_pb'
-import {IDPType as ProtoIDPType, IDPState as ProtoIDPState} from '../proto/zitadel/idp/v2/idp_pb'
+import {GetIDPByIDRequestSchema} from '@zitadel/proto/zitadel/idp/v2/idp_service_pb'
+import type {IDP as ProtoIDP} from '@zitadel/proto/zitadel/idp/v2/idp_pb'
+import {IDPType as ProtoIDPType, IDPState as ProtoIDPState} from '@zitadel/proto/zitadel/idp/v2/idp_pb'
 
 /**
  * Maps a proto IDP to the entity class. The v2 proto carries an explicit type

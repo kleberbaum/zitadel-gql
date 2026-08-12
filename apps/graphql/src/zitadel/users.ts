@@ -15,7 +15,7 @@ import type {
   ZitadelUserUpdateInput
 } from './types'
 
-import type {User as ProtoUser} from '../proto/zitadel/user/v2/user_pb'
+import type {User as ProtoUser} from '@zitadel/proto/zitadel/user/v2/user_pb'
 import {
   CreateUserRequestSchema,
   CreateUserRequest_HumanSchema,
@@ -37,7 +37,7 @@ import {
   UpdateUserRequest_HumanSchema,
   UpdateUserRequest_Human_ProfileSchema,
   VerifyEmailRequestSchema
-} from '../proto/zitadel/user/v2/user_service_pb'
+} from '@zitadel/proto/zitadel/user/v2/user_service_pb'
 import {
   SearchQuerySchema as UserSearchQuerySchema,
   EmailQuerySchema,
@@ -45,33 +45,33 @@ import {
   UserNameQuerySchema,
   OrQuerySchema,
   Type as ProtoUserType
-} from '../proto/zitadel/user/v2/query_pb'
-import {SetHumanEmailSchema} from '../proto/zitadel/user/v2/email_pb'
-import {SetHumanPhoneSchema} from '../proto/zitadel/user/v2/phone_pb'
-import {SetHumanProfileSchema} from '../proto/zitadel/user/v2/user_pb'
+} from '@zitadel/proto/zitadel/user/v2/query_pb'
+import {SetHumanEmailSchema} from '@zitadel/proto/zitadel/user/v2/email_pb'
+import {SetHumanPhoneSchema} from '@zitadel/proto/zitadel/user/v2/phone_pb'
+import {SetHumanProfileSchema} from '@zitadel/proto/zitadel/user/v2/user_pb'
 import {
   HashedPasswordSchema,
   PasswordSchema,
   SetPasswordSchema
-} from '../proto/zitadel/user/v2/password_pb'
-import {ListQuerySchema, TextQueryMethod} from '../proto/zitadel/object/v2/object_pb'
+} from '@zitadel/proto/zitadel/user/v2/password_pb'
+import {ListQuerySchema, TextQueryMethod} from '@zitadel/proto/zitadel/object/v2/object_pb'
 import {
   ListAuthorizationsRequestSchema,
   CreateAuthorizationRequestSchema,
   UpdateAuthorizationRequestSchema,
   DeleteAuthorizationRequestSchema
-} from '../proto/zitadel/authorization/v2/authorization_service_pb'
+} from '@zitadel/proto/zitadel/authorization/v2/authorization_service_pb'
 import {
   AuthorizationsSearchFilterSchema,
   RoleKeyQuerySchema,
   State as ProtoAuthorizationState
-} from '../proto/zitadel/authorization/v2/authorization_pb'
+} from '@zitadel/proto/zitadel/authorization/v2/authorization_pb'
 import {
   InIDsFilterSchema,
   PaginationRequestSchema,
   TextFilterMethod
-} from '../proto/zitadel/filter/v2/filter_pb'
-import {ListProjectRolesRequestSchema} from '../proto/zitadel/project/v2/project_service_pb'
+} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
+import {ListProjectRolesRequestSchema} from '@zitadel/proto/zitadel/project/v2/project_service_pb'
 
 // --------------------------------------------------
 // Helpers

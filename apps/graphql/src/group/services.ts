@@ -39,19 +39,19 @@ import {
   DeleteGroupGrantRequestSchema,
   ListGroupGrantsRequestSchema,
   SetGroupManagerRolesRequestSchema
-} from '../proto/zitadel/group/v2/group_service_pb'
+} from '@zitadel/proto/zitadel/group/v2/group_service_pb'
 import {
   GroupsSearchFilterSchema,
   GroupUsersSearchFilterSchema,
   GroupGrantsSearchFilterSchema,
   GroupNameFilterSchema
-} from '../proto/zitadel/group/v2/group_pb'
+} from '@zitadel/proto/zitadel/group/v2/group_pb'
 import type {
   Group as ProtoGroup,
   GroupUser as ProtoGroupUser,
   GroupGrant as ProtoGroupGrant
-} from '../proto/zitadel/group/v2/group_pb'
-import {PaginationRequestSchema, IDFilterSchema} from '../proto/zitadel/filter/v2/filter_pb'
+} from '@zitadel/proto/zitadel/group/v2/group_pb'
+import {PaginationRequestSchema, IDFilterSchema} from '@zitadel/proto/zitadel/filter/v2/filter_pb'
 
 const DEFAULT_LIMIT = 100
 
