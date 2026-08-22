@@ -34,12 +34,36 @@ function workerFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     headers.set('Host', hostHeader)
     modifiedInit.headers = headers
   }
-  return fetch(input, modifiedInit).then(response => {
-    // If we got a redirect when we didn't want one, throw an error
-    if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
-      throw new Error(`Unexpected redirect to ${response.headers.get('location')}`)
+  const url = input instanceof Request ? input.url : String(input)
+
+  const attempt = () =>
+    fetch(input, modifiedInit).then(response => {
+      // If we got a redirect when we didn't want one, throw an error
+      if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+        throw new Error(`Unexpected redirect to ${response.headers.get('location')}`)
+      }
+      return response
+    })
+
+  /**
+   * Bun occasionally fails a pooled keep-alive request with
+   * "The connection was closed." when the upstream dropped the socket between
+   * two uses. In production that surfaced as a 500 on roughly one request in
+   * five, with an empty stack that named no URL. A read is safe to repeat
+   * once on a fresh connection; anything else is logged with its URL so the
+   * next investigation starts with the fact this one lacked.
+   */
+  const isClosedConnection = (e: unknown) =>
+    e instanceof Error && /connection was closed/i.test(e.message)
+  const isRead = /\/(Get|List|Search|Retrieve)[A-Za-z]*$/.test(new URL(url).pathname)
+
+  return attempt().catch(async error => {
+    if (isClosedConnection(error) && isRead) {
+      console.warn(`zitadel-gql: upstream closed the connection, retrying once: ${url}`)
+      return attempt()
     }
-    return response
+    console.error(`zitadel-gql: upstream fetch failed: ${url}`, error instanceof Error ? error.message : error)
+    throw error
   })
 }
 
