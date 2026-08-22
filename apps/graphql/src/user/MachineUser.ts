@@ -81,7 +81,7 @@ export class MachineUser implements UserNode {
   /**
    * Resolves the user's data as a Relay connection.
    */
-  async data(args?: RelayArgs): Promise<DataConnection> {
+  data = async (args?: RelayArgs): Promise<DataConnection> => {
     const items: UserDataNode[] = []
 
     items.push({
@@ -113,7 +113,7 @@ export class MachineUser implements UserNode {
    * Resolves grants as a Relay connection.
    * The underlying Zitadel request is cached per request.
    */
-  async grants(args?: RelayArgs): Promise<GrantConnection> {
+  grants = async (args?: RelayArgs): Promise<GrantConnection> => {
     const gs = await this._getGrants()
     const items = gs.map(g => new Grant(g))
 
@@ -142,7 +142,7 @@ export class MachineUser implements UserNode {
    * Resolves roles as a Relay connection.
    * Roles are derived from cached grants to avoid extra requests.
    */
-  async roles(args?: RelayArgs): Promise<RoleConnection> {
+  roles = async (args?: RelayArgs): Promise<RoleConnection> => {
     const rs = await this._getRoles()
     const items = rs.map(r => new Role({key: r.key, displayName: r.displayName}))
 
@@ -170,7 +170,7 @@ export class MachineUser implements UserNode {
   /**
    * Backlink: Resolves the organization (resourceOwner) this user belongs to.
    */
-  async organization(): Promise<Organization | null> {
+  organization = async (): Promise<Organization | null> => {
     // Lazy import to avoid circular dependency
     const {OrganizationServices} = await import('../organization/services')
     return OrganizationServices.getById(this.resourceOwner)
@@ -179,7 +179,7 @@ export class MachineUser implements UserNode {
   /**
    * Backlink: Resolves sessions for this user as Relay connection.
    */
-  async sessions(args?: RelayArgs): Promise<SessionConnection> {
+  sessions = async (args?: RelayArgs): Promise<SessionConnection> => {
     // Lazy import to avoid circular dependency
     const {SessionServices} = await import('../session/services')
     return SessionServices.listByUser(String(this.id), args)
@@ -188,7 +188,7 @@ export class MachineUser implements UserNode {
   /**
    * Backlink: Resolves authorizations for this user as Relay connection.
    */
-  async authorizations(args?: RelayArgs): Promise<AuthorizationConnection> {
+  authorizations = async (args?: RelayArgs): Promise<AuthorizationConnection> => {
     // Lazy import to avoid circular dependency
     const {AuthorizationServices} = await import('../authorization/services')
     return AuthorizationServices.listByUser(String(this.id), args)

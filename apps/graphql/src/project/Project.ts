@@ -66,7 +66,7 @@ export class Project implements ProjectNode {
   /**
    * Resolves project roles as a Relay connection via project/v2 ListProjectRoles.
    */
-  async roles(args?: RelayArgs): Promise<ProjectRoleConnection> {
+  roles = async (args?: RelayArgs): Promise<ProjectRoleConnection> => {
     // Lazy import to avoid circular dependency
     const {ProjectServices} = await import('./services')
     return ProjectServices.getRoles(String(this.id), args)
@@ -76,7 +76,7 @@ export class Project implements ProjectNode {
    * Resolves project grants as a Relay connection.
    * Not wired to the API, kept for schema compatibility with the old facade.
    */
-  async grants(args?: RelayArgs): Promise<ProjectGrantConnection> {
+  grants = async (args?: RelayArgs): Promise<ProjectGrantConnection> => {
     const items: ProjectGrant[] = []
 
     const {start, end, hasNextPage, hasPreviousPage} = paginateWindow({
@@ -103,7 +103,7 @@ export class Project implements ProjectNode {
   /**
    * Backlink: Resolves the organization that owns this project.
    */
-  async organization(): Promise<Organization | null> {
+  organization = async (): Promise<Organization | null> => {
     // Lazy import to avoid circular dependency
     const {OrganizationServices} = await import('../organization/services')
     return OrganizationServices.getById(this.organizationId)
@@ -112,7 +112,7 @@ export class Project implements ProjectNode {
   /**
    * Backlink: Resolves applications in this project as Relay connection.
    */
-  async applications(args?: RelayArgs): Promise<ApplicationConnection> {
+  applications = async (args?: RelayArgs): Promise<ApplicationConnection> => {
     // Lazy import to avoid circular dependency
     const {ApplicationServices} = await import('../application/services')
     return ApplicationServices.listByProject(String(this.id), args)

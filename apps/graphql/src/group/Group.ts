@@ -41,7 +41,7 @@ export class Group implements GroupNode {
   /**
    * Members of this group as a Relay connection.
    */
-  async members(args?: RelayArgs): Promise<GroupUserConnection> {
+  members = async (args?: RelayArgs): Promise<GroupUserConnection> => {
     // Lazy import to avoid a circular dependency, same as the other areas.
     const {GroupServices} = await import('./services')
     return GroupServices.listMembers(String(this.id), args)
@@ -50,7 +50,7 @@ export class Group implements GroupNode {
   /**
    * Project role grants held by this group.
    */
-  async grants(args?: RelayArgs): Promise<GroupGrantConnection> {
+  grants = async (args?: RelayArgs): Promise<GroupGrantConnection> => {
     const {GroupServices} = await import('./services')
     return GroupServices.listGrants(String(this.id), args)
   }

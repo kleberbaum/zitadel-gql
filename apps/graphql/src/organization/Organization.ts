@@ -53,7 +53,7 @@ export class Organization implements OrganizationNode {
   /**
    * Resolves domains as a Relay connection via org/v2 ListOrganizationDomains.
    */
-  async domains(args?: RelayArgs): Promise<DomainConnection> {
+  domains = async (args?: RelayArgs): Promise<DomainConnection> => {
     // Lazy import to avoid circular dependency
     const {OrganizationServices} = await import('./services')
     return OrganizationServices.getDomains(String(this.id), args)
@@ -62,7 +62,7 @@ export class Organization implements OrganizationNode {
   /**
    * Reverse connection: Resolves projects in this organization.
    */
-  async projects(args?: RelayArgs): Promise<ProjectConnection> {
+  projects = async (args?: RelayArgs): Promise<ProjectConnection> => {
     // Lazy import to avoid circular dependency
     const {ProjectServices} = await import('../project/services')
     return ProjectServices.listByOrg(String(this.id), args)
@@ -71,7 +71,7 @@ export class Organization implements OrganizationNode {
   /**
    * Reverse connection: Resolves users in this organization.
    */
-  async users(args?: RelayArgs): Promise<UserConnection> {
+  users = async (args?: RelayArgs): Promise<UserConnection> => {
     // Lazy import to avoid circular dependency
     const {UserServices} = await import('../user')
     return UserServices.listByOrg(String(this.id), args)
@@ -80,7 +80,7 @@ export class Organization implements OrganizationNode {
   /**
    * Reverse connection: Resolves applications in this organization.
    */
-  async applications(args?: RelayArgs): Promise<ApplicationConnection> {
+  applications = async (args?: RelayArgs): Promise<ApplicationConnection> => {
     // Lazy import to avoid circular dependency
     const {ApplicationServices} = await import('../application/services')
     return ApplicationServices.listByOrg(String(this.id), args)

@@ -75,7 +75,7 @@ export class Application implements ApplicationNode {
    * Resolves application keys as a Relay connection.
    * Not wired to the API, kept for schema compatibility with the old facade.
    */
-  async keys(args?: RelayArgs): Promise<ApplicationKeyConnection> {
+  keys = async (args?: RelayArgs): Promise<ApplicationKeyConnection> => {
     const items: ApplicationKey[] = []
 
     const {start, end, hasNextPage, hasPreviousPage} = paginateWindow({
@@ -102,7 +102,7 @@ export class Application implements ApplicationNode {
   /**
    * Backlink: Resolves the project this application belongs to.
    */
-  async project(): Promise<Project | null> {
+  project = async (): Promise<Project | null> => {
     // Lazy import to avoid circular dependency
     const {ProjectServices} = await import('../project/services')
     return ProjectServices.getById(this.projectId)

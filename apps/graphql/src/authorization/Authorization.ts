@@ -69,7 +69,7 @@ export class Authorization implements AuthorizationNode {
   /**
    * Backlink: Resolves the user this authorization belongs to.
    */
-  async user(): Promise<UserNode | null> {
+  user = async (): Promise<UserNode | null> => {
     // Lazy import to avoid circular dependency
     const {UserServices} = await import('../user')
     return UserServices.user({id: this.userId})
@@ -78,7 +78,7 @@ export class Authorization implements AuthorizationNode {
   /**
    * Backlink: Resolves the organization this authorization is for.
    */
-  async organization(): Promise<Organization | null> {
+  organization = async (): Promise<Organization | null> => {
     // Lazy import to avoid circular dependency
     const {OrganizationServices} = await import('../organization/services')
     return OrganizationServices.getById(this.organizationId)
@@ -87,7 +87,7 @@ export class Authorization implements AuthorizationNode {
   /**
    * Backlink: Resolves the project this authorization grants access to.
    */
-  async project(): Promise<Project | null> {
+  project = async (): Promise<Project | null> => {
     // Lazy import to avoid circular dependency
     const {ProjectServices} = await import('../project/services')
     return ProjectServices.getById(this.projectId)

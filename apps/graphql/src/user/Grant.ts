@@ -37,7 +37,7 @@ export class Grant implements GrantNode {
   /**
    * Backlink: Resolves the organization this grant belongs to.
    */
-  async organization(): Promise<Organization | null> {
+  organization = async (): Promise<Organization | null> => {
     if (!this.organizationId) return null
     // Lazy import to avoid circular dependency
     const {OrganizationServices} = await import('../organization/services')
@@ -47,7 +47,7 @@ export class Grant implements GrantNode {
   /**
    * Backlink: Resolves the project this grant is for.
    */
-  async project(): Promise<Project | null> {
+  project = async (): Promise<Project | null> => {
     if (!this.projectId) return null
     // Lazy import to avoid circular dependency
     const {ProjectServices} = await import('../project/services')

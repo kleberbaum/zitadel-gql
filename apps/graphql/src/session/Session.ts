@@ -54,7 +54,7 @@ export class Session implements SessionNode {
   /**
    * Backlink: Resolves the user this session belongs to.
    */
-  async user(): Promise<UserNode | null> {
+  user = async (): Promise<UserNode | null> => {
     if (!this.userId) return null
     // Lazy import to avoid circular dependency
     const {UserServices} = await import('../user')
