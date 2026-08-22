@@ -92,12 +92,34 @@ export const graphql = {
 
 // Built-in OIDC auth against the Zitadel this facade fronts, wired as a v3
 // plugin (the previous build initialized it through app.use()). Guarded
-// resolvers keep their @requireAuth() decorators. Auth stays inactive during
-// the hermetic `pylon build` because AUTH_ISSUER is not set in the build env.
+// resolvers keep their @requireAuth() decorators.
+//
+// AUTH_ISSUER is mandatory. There is no unauthenticated build of this facade:
+// it exposes every user, org and project of the Zitadel behind it, so a
+// deployment that cannot authenticate its callers must not start at all.
+//
+// This used to be `authIssuer ? [useAuth(...)] : []`, so that `pylon build`
+// would work without the variable. That conditional was a trap. Pylon only
+// populates the auth context from the plugin, and authMiddleware throws
+// "Authentication required" whenever that context is empty, so a facade
+// deployed without AUTH_ISSUER answered 401 to every guarded resolver no
+// matter what token the caller sent. It failed closed rather than open, but
+// the failure was indistinguishable from a bad token and cost hours to find.
+// The build now passes the variable explicitly (see the build script) instead
+// of the code quietly tolerating its absence.
 const authIssuer = process.env.AUTH_ISSUER
 
+if (!authIssuer) {
+  throw new Error(
+    'AUTH_ISSUER is not set. The facade authenticates every caller against ' +
+      'the Zitadel it fronts, so there is no mode in which it can run ' +
+      'without an issuer. Set AUTH_ISSUER to that Zitadel, for example ' +
+      'https://accounts.example.com.'
+  )
+}
+
 export const config: PylonConfig = {
-  plugins: authIssuer ? [useAuth({issuer: authIssuer})] : []
+  plugins: [useAuth({issuer: authIssuer})]
 }
 
 // Bun serves the default export directly. On Cloudflare Workers the same

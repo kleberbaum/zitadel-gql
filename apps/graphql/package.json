@@ -6,7 +6,7 @@
   "description": "GraphQL facade over Zitadel for the Walther estate. Consumers only ever see GraphQL, never Zitadel.",
   "license": "EUPL-1.2",
   "scripts": {
-    "build": "PYLON_DISABLE_TELEMETRY=1 bun ./node_modules/@getcronit/pylon-dev/dist/index.js build",
+    "build": "PYLON_DISABLE_TELEMETRY=1 AUTH_ISSUER=${AUTH_ISSUER:-https://build.invalid} bun ./node_modules/@getcronit/pylon-dev/dist/index.js build",
     "dev": "PYLON_DISABLE_TELEMETRY=1 bun ./node_modules/@getcronit/pylon-dev/dist/index.js dev",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
