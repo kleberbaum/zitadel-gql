@@ -354,11 +354,15 @@ export async function updateUser(userId: string, changes: ZitadelUserUpdateInput
           profile: create(UpdateUserRequest_Human_ProfileSchema, {
             ...(changes.profile.givenName != null ? {givenName: changes.profile.givenName} : {}),
             ...(changes.profile.familyName != null ? {familyName: changes.profile.familyName} : {}),
-            ...(changes.profile.displayName != null ? {displayName: changes.profile.displayName} : {}),
-            ...(changes.profile.preferredLanguage != null
+            // Zitadel validates each optional profile string it receives as
+            // 1 to 200 runes. An empty string is therefore not "leave it" but
+            // "invalid request", and one empty nickName failed the whole
+            // update. Empty is treated as absent here.
+            ...(changes.profile.displayName ? {displayName: changes.profile.displayName} : {}),
+            ...(changes.profile.preferredLanguage
               ? {preferredLanguage: changes.profile.preferredLanguage}
               : {}),
-            ...(changes.profile.nickName != null ? {nickName: changes.profile.nickName} : {}),
+            ...(changes.profile.nickName ? {nickName: changes.profile.nickName} : {}),
             ...(changes.profile.gender != null
               ? {gender: genderFromString(changes.profile.gender)}
               : {})
