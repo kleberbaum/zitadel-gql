@@ -114,7 +114,9 @@ if (!authIssuer) {
     'AUTH_ISSUER is not set. The facade authenticates every caller against ' +
       'the Zitadel it fronts, so there is no mode in which it can run ' +
       'without an issuer. Set AUTH_ISSUER to that Zitadel, for example ' +
-      'https://accounts.example.com.'
+      'https://accounts.example.com, and AUTH_KEY to the JSON key of an API ' +
+      'application there; Pylon introspects tokens with it and fails the ' +
+      'first request without it.'
   )
 }
 

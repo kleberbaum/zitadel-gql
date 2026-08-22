@@ -1,6 +1,6 @@
 // src/organization/services.ts
 import {create} from '@bufbuild/protobuf'
-import {requireAuth} from '@getcronit/pylon'
+import {requireAuth} from '../auth'
 import {getZitadelClients, createCallOptions} from '../zitadel/client'
 import {tsToIso} from '../zitadel/users'
 import {Organization, OrganizationConnection, OrganizationEdge} from './Organization'

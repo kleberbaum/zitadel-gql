@@ -8,7 +8,7 @@
 // then, but nothing exposed them: with REST removed from the package, groups
 // were reachable only over the internal Connect API. This closes that.
 import {create} from '@bufbuild/protobuf'
-import {requireAuth} from '@getcronit/pylon'
+import {requireAuth} from '../auth'
 import {getZitadelClients, createCallOptions} from '../zitadel/client'
 import {tsToIso} from '../zitadel/users'
 import {
