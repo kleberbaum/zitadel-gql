@@ -6,7 +6,7 @@ import {encodeCursor, paginateWindow} from '../relay/relay'
 import {PageInfo} from '../relay/PageInfo'
 import {Grant, GrantConnection, GrantEdge} from './Grant'
 import {Role, RoleConnection, RoleEdge} from './Role'
-import type {UserNode, UserState, UserDataNode, UserProfileNode} from './types'
+import type {UserNode, UserState, UserDataNode, UserProfileNode, Gender} from './types'
 import type {RelayArgs} from '../relay/types'
 import type {Organization} from '../organization/Organization'
 import type {SessionConnection} from '../session/Session'
@@ -50,6 +50,8 @@ export class HumanUser implements UserNode {
     phone?: string
     firstName?: string
     lastName?: string
+    nickName?: string
+    gender?: Gender
   }
 
   constructor(base: {
@@ -70,6 +72,8 @@ export class HumanUser implements UserNode {
     phone?: string
     firstName?: string
     lastName?: string
+    nickName?: string
+    gender?: Gender
   }) {
     this.id = base.id
     this.state = base.state
@@ -88,7 +92,9 @@ export class HumanUser implements UserNode {
       email: base.email,
       phone: base.phone,
       firstName: base.firstName,
-      lastName: base.lastName
+      lastName: base.lastName,
+      nickName: base.nickName,
+      gender: base.gender
     }
 
     this.preferences = {
@@ -132,7 +138,9 @@ export class HumanUser implements UserNode {
       email: this._profileBase.email,
       phone: this._profileBase.phone,
       firstName: this._profileBase.firstName,
-      lastName: this._profileBase.lastName
+      lastName: this._profileBase.lastName,
+      nickName: this._profileBase.nickName,
+      gender: this._profileBase.gender
     })
 
     const {start, end, hasNextPage, hasPreviousPage} = paginateWindow({

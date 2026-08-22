@@ -37,7 +37,10 @@ import {
 } from '../zitadel/users'
 
 import type {User as ProtoUser} from '@zitadel/proto/zitadel/user/v2/user_pb'
-import {UserState as ProtoUserState} from '@zitadel/proto/zitadel/user/v2/user_pb'
+import {
+  Gender as ProtoGender,
+  UserState as ProtoUserState
+} from '@zitadel/proto/zitadel/user/v2/user_pb'
 
 import {HumanUser} from './HumanUser'
 import {MachineUser} from './MachineUser'
@@ -45,7 +48,7 @@ import {UserConnection, UserEdge} from './User'
 import {Role, RoleConnection, RoleEdge} from './Role'
 import {PageInfo} from '../relay/PageInfo'
 import type {UserNode} from './types'
-import {UserState} from './types'
+import {Gender, UserState} from './types'
 
 /**
  * Mutation payloads (return OBJECTS, not raw JSON/void).
@@ -84,6 +87,23 @@ export class AuthorizationMutationResult {
     this.ok = args.ok
     this.message = args.message
     this.authorizationId = args.authorizationId
+  }
+}
+
+function mapGender(gender: number | undefined): Gender | undefined {
+  switch (gender) {
+    case ProtoGender.FEMALE:
+      return Gender.GENDER_FEMALE
+    case ProtoGender.MALE:
+      return Gender.GENDER_MALE
+    case ProtoGender.DIVERSE:
+      return Gender.GENDER_DIVERSE
+    case ProtoGender.UNSPECIFIED:
+      return Gender.GENDER_UNSPECIFIED
+    default:
+      // Absent rather than UNSPECIFIED: the user simply has not set one, and
+      // reporting a value would make an unset field look answered.
+      return undefined
   }
 }
 
@@ -151,7 +171,9 @@ function toUserModel(z: ProtoUser): UserNode {
     email: emailObj?.email || undefined,
     phone: phoneObj?.phone || undefined,
     firstName: firstName || undefined,
-    lastName: lastName || undefined
+    lastName: lastName || undefined,
+    nickName: profile?.nickName || undefined,
+    gender: mapGender(profile?.gender)
   })
 }
 

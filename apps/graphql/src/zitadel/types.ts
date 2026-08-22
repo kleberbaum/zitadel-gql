@@ -23,6 +23,13 @@ export type ZitadelUserUpdateInput = {
     familyName?: string
     displayName?: string
     preferredLanguage?: string
+    nickName?: string
+    /**
+     * One of GENDER_UNSPECIFIED, GENDER_FEMALE, GENDER_MALE, GENDER_DIVERSE.
+     * Taken as the enum name rather than the numeric proto value so callers
+     * never have to know Zitadel's wire encoding.
+     */
+    gender?: string
   }
   email?: {
     email: string

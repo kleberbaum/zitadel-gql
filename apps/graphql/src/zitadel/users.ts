@@ -48,7 +48,7 @@ import {
 } from '@zitadel/proto/zitadel/user/v2/query_pb'
 import {SetHumanEmailSchema} from '@zitadel/proto/zitadel/user/v2/email_pb'
 import {SetHumanPhoneSchema} from '@zitadel/proto/zitadel/user/v2/phone_pb'
-import {SetHumanProfileSchema} from '@zitadel/proto/zitadel/user/v2/user_pb'
+import {SetHumanProfileSchema, Gender as ProtoGender} from '@zitadel/proto/zitadel/user/v2/user_pb'
 import {
   HashedPasswordSchema,
   PasswordSchema,
@@ -327,6 +327,24 @@ export async function unlockUser(userId: string, organizationId?: string) {
 // User updates / credentials
 // --------------------------------------------------
 
+/**
+ * Accepts the enum name a caller sends and returns Zitadel's numeric gender.
+ * An unknown name maps to UNSPECIFIED rather than throwing, so a client that
+ * learns a new value cannot break an otherwise valid profile update.
+ */
+function genderFromString(gender: string): ProtoGender {
+  switch (gender) {
+    case 'GENDER_FEMALE':
+      return ProtoGender.FEMALE
+    case 'GENDER_MALE':
+      return ProtoGender.MALE
+    case 'GENDER_DIVERSE':
+      return ProtoGender.DIVERSE
+    default:
+      return ProtoGender.UNSPECIFIED
+  }
+}
+
 export async function updateUser(userId: string, changes: ZitadelUserUpdateInput, organizationId?: string) {
   const clients = getZitadelClients()
 
@@ -339,6 +357,10 @@ export async function updateUser(userId: string, changes: ZitadelUserUpdateInput
             ...(changes.profile.displayName != null ? {displayName: changes.profile.displayName} : {}),
             ...(changes.profile.preferredLanguage != null
               ? {preferredLanguage: changes.profile.preferredLanguage}
+              : {}),
+            ...(changes.profile.nickName != null ? {nickName: changes.profile.nickName} : {}),
+            ...(changes.profile.gender != null
+              ? {gender: genderFromString(changes.profile.gender)}
               : {})
           })
         }
