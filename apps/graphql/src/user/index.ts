@@ -1,5 +1,6 @@
 // src/user/index.ts
-import {getContext, requireAuth} from '@getcronit/pylon'
+import {getContext} from '@getcronit/pylon'
+import {requireAuth} from '../auth'
 
 import type {ID} from '../types'
 import {InvalidInputError} from '../errors/general.errors'
@@ -98,11 +99,10 @@ function mapGender(gender: number | undefined): Gender | undefined {
       return Gender.GENDER_MALE
     case ProtoGender.DIVERSE:
       return Gender.GENDER_DIVERSE
-    case ProtoGender.UNSPECIFIED:
-      return Gender.GENDER_UNSPECIFIED
     default:
-      // Absent rather than UNSPECIFIED: the user simply has not set one, and
-      // reporting a value would make an unset field look answered.
+      // Zitadel always sends the field for a human profile, with 0
+      // (UNSPECIFIED) when nobody ever set it. Reporting that as a value would
+      // make an unset field look answered, so it reads as absent.
       return undefined
   }
 }

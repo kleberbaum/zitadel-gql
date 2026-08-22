@@ -9,7 +9,7 @@
     "build": "PYLON_DISABLE_TELEMETRY=1 AUTH_ISSUER=${AUTH_ISSUER:-https://build.invalid} bun ./node_modules/@getcronit/pylon-dev/dist/index.js build",
     "dev": "PYLON_DISABLE_TELEMETRY=1 bun ./node_modules/@getcronit/pylon-dev/dist/index.js dev",
     "typecheck": "tsc --noEmit",
-    "test": "bun test",
+    "test": "AUTH_ISSUER=${AUTH_ISSUER:-https://build.invalid} bun test",
     "deploy:worker": "bun run build && wrangler deploy"
   },
   "pylon": {

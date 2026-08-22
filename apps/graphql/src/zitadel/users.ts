@@ -2,6 +2,7 @@
 // User data layer over the Zitadel user/v2, authorization/v2 and project/v2
 // Connect APIs. This replaces the former management/v1 REST layer completely.
 import {create} from '@bufbuild/protobuf'
+import {InvalidInputError} from '../errors/general.errors'
 import {timestampDate} from '@bufbuild/protobuf/wkt'
 import {getContext} from '@getcronit/pylon'
 
@@ -340,8 +341,12 @@ function genderFromString(gender: string): ProtoGender {
       return ProtoGender.MALE
     case 'GENDER_DIVERSE':
       return ProtoGender.DIVERSE
-    default:
+    case 'GENDER_UNSPECIFIED':
       return ProtoGender.UNSPECIFIED
+    default:
+      // A misspelled name used to map to UNSPECIFIED and thereby clear a
+      // stored gender. Rejecting it keeps a typo from becoming a write.
+      throw new InvalidInputError(`unknown gender "${gender}"`)
   }
 }
 
@@ -352,8 +357,8 @@ export async function updateUser(userId: string, changes: ZitadelUserUpdateInput
     ...(changes.profile
       ? {
           profile: create(UpdateUserRequest_Human_ProfileSchema, {
-            ...(changes.profile.givenName != null ? {givenName: changes.profile.givenName} : {}),
-            ...(changes.profile.familyName != null ? {familyName: changes.profile.familyName} : {}),
+            ...(changes.profile.givenName ? {givenName: changes.profile.givenName} : {}),
+            ...(changes.profile.familyName ? {familyName: changes.profile.familyName} : {}),
             // Zitadel validates each optional profile string it receives as
             // 1 to 200 runes. An empty string is therefore not "leave it" but
             // "invalid request", and one empty nickName failed the whole
@@ -363,7 +368,7 @@ export async function updateUser(userId: string, changes: ZitadelUserUpdateInput
               ? {preferredLanguage: changes.profile.preferredLanguage}
               : {}),
             ...(changes.profile.nickName ? {nickName: changes.profile.nickName} : {}),
-            ...(changes.profile.gender != null
+            ...(changes.profile.gender
               ? {gender: genderFromString(changes.profile.gender)}
               : {})
           })

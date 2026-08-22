@@ -96,7 +96,7 @@ export class GroupUser implements GroupUserNode {
   /**
    * The full user behind this membership.
    */
-  async user() {
+  user = async () => {
     const {UserServices} = await import('../user')
     return UserServices.user({id: this.userId, organizationId: this.organizationId})
   }
