@@ -1,4 +1,4 @@
-# iam
+# idm
 
 GraphQL facade over Zitadel for the Walther estate. Consumers only ever see
 GraphQL. Zitadel, its Connect RPC APIs and its tokens never leak past this
@@ -39,7 +39,8 @@ Pylon's Sentry stack still reads 1.x symbols from it, so joining the workspace
 makes the app die at import. It consumes `@zitadel/proto` by path instead,
 which keeps the single-codegen property that matters.
 
-An older, pre-Pylon-v3 generation of this code exists at `netsnek/iam`. It is
+An older, pre-Pylon-v3 generation of this code exists at `netsnek/iam` (the name
+predates the rename to idm). It is
 **not** an upstream of this one and nothing is folded back into it: it predates
 the rewrite, has a different area layout and does not build against this fork.
 Ignore it.
@@ -107,8 +108,8 @@ proto generation before `docker build`.
 
 ```sh
 bun run generate
-docker build -t iam .
-docker run -p 3000:3000 -e AUTH_ISSUER=... -e AUTH_KEY=... iam
+docker build -t idm .
+docker run -p 3000:3000 -e AUTH_ISSUER=... -e AUTH_KEY=... idm
 ```
 
 ## Environment variables
