@@ -36,8 +36,29 @@ function workerFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   }
   const url = input instanceof Request ? input.url : String(input)
 
+  // One line per call to Zitadel, at info level, so the number of round
+  // trips behind a GraphQL request can be counted in the log rather than
+  // guessed: "zitadel-gql: ListUsers 12 ms". The method is the last path
+  // segment of the Connect route.
+  const method = new URL(url).pathname.split('/').pop() || url
+  const timed = (p: Promise<Response>) => {
+    const started = performance.now()
+    const log = (outcome: string) =>
+      console.info(`zitadel-gql: ${method} ${Math.round(performance.now() - started)} ms${outcome}`)
+    return p.then(
+      response => {
+        log(response.ok ? '' : ` status ${response.status}`)
+        return response
+      },
+      error => {
+        log(' failed')
+        throw error
+      }
+    )
+  }
+
   const attempt = () =>
-    fetch(input, modifiedInit).then(response => {
+    timed(fetch(input, modifiedInit)).then(response => {
       // If we got a redirect when we didn't want one, throw an error
       if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
         throw new Error(`Unexpected redirect to ${response.headers.get('location')}`)
