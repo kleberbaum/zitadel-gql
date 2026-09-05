@@ -24,7 +24,12 @@ const expectedQueries = [
   'authorization',
   'authorizations',
   'idp',
-  'idps'
+  'idps',
+  'group',
+  'groups',
+  'groupMembers',
+  'groupGrants',
+  'userGroups'
 ]
 
 const expectedMutations = [
@@ -43,7 +48,16 @@ const expectedMutations = [
   'setUserPhone',
   'createAuthorization',
   'updateAuthorization',
-  'deleteAuthorization'
+  'deleteAuthorization',
+  'createGroup',
+  'updateGroup',
+  'deleteGroup',
+  'addUsersToGroup',
+  'removeUsersFromGroup',
+  'createGroupGrant',
+  'updateGroupGrant',
+  'deleteGroupGrant',
+  'setGroupManagerRoles'
 ]
 
 describe('graphql export', () => {
