@@ -17,3 +17,6 @@ node_modules/
 
 # logs
 *.log
+
+# the proto package copied into the build context by scripts/vendor-proto.sh
+vendor/
