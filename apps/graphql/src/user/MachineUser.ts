@@ -6,7 +6,7 @@ import {encodeCursor, paginateWindow} from '../relay/relay'
 import {PageInfo} from '../relay/PageInfo'
 import {Grant, GrantConnection, GrantEdge} from './Grant'
 import {Role, RoleConnection, RoleEdge} from './Role'
-import type {UserNode, UserState, UserDataNode} from './types'
+import type {UserFields, UserState, UserDataNode} from './types'
 import type {RelayArgs} from '../relay/types'
 import type {Organization} from '../organization/Organization'
 import type {SessionConnection} from '../session/Session'
@@ -17,7 +17,7 @@ import {DataConnection, DataEdge} from './data/Data'
  * Represents a machine user coming from Zitadel.
  * The instance type is what makes `... on MachineUser` resolve correctly.
  */
-export class MachineUser implements UserNode {
+export class MachineUser implements UserFields {
   public __typename: 'MachineUser' = 'MachineUser'
 
   public id: ID

@@ -89,4 +89,18 @@ describe('pylon build artifacts', () => {
     expect(schema).not.toContain('userSignOut')
     expect(schema).not.toContain('userRefresh')
   })
+
+  test('a user is UserNode, implemented by HumanUser and MachineUser only', () => {
+    const schema = readFileSync(join(pylonDir, 'schema.graphql'), 'utf8')
+
+    // The consumers select `... on HumanUser` on UserNode. It used to be an
+    // interface IUserNode with a phantom object type UserNode beside the two
+    // real ones, which no query could resolve at runtime.
+    expect(schema).toContain('user(args: UserArgsInput!): UserNode!')
+    expect(schema).toMatch(/type UserEdge \{\s*cursor: String!\s*node: UserNode!/)
+    expect(schema).toMatch(/type HumanUser implements [^{]*\bUserNode\b/)
+    expect(schema).toMatch(/type MachineUser implements [^{]*\bUserNode\b/)
+    expect(schema).not.toContain('IUserNode')
+    expect(schema).not.toMatch(/type UserNode implements/)
+  })
 })

@@ -6,7 +6,7 @@ import {encodeCursor, paginateWindow} from '../relay/relay'
 import {PageInfo} from '../relay/PageInfo'
 import {Grant, GrantConnection, GrantEdge} from './Grant'
 import {Role, RoleConnection, RoleEdge} from './Role'
-import type {UserNode, UserState, UserDataNode, UserProfileNode, Gender} from './types'
+import type {UserFields, UserState, UserDataNode, UserProfileNode, Gender} from './types'
 import type {RelayArgs} from '../relay/types'
 import type {Organization} from '../organization/Organization'
 import type {SessionConnection} from '../session/Session'
@@ -23,7 +23,7 @@ type Preferences = {
  * Represents a human user coming from Zitadel.
  * The instance holds normalized base fields and resolves related collections lazily.
  */
-export class HumanUser implements UserNode {
+export class HumanUser implements UserFields {
   public __typename: 'HumanUser' = 'HumanUser'
 
   public id: ID

@@ -1,5 +1,7 @@
 // src/user/types.ts
 import type {ID} from '../types'
+import type {HumanUser} from './HumanUser'
+import type {MachineUser} from './MachineUser'
 
 export enum UserState {
   USER_STATE_UNSPECIFIED = 'USER_STATE_UNSPECIFIED',
@@ -25,7 +27,11 @@ export interface Node {
   id: ID
 }
 
-export interface UserNode extends Node {
+/**
+ * The fields every user carries, human or machine. The classes implement
+ * this; the schema never sees it by that name.
+ */
+export interface UserFields extends Node {
   state: UserState
 
   userName: string
@@ -36,6 +42,18 @@ export interface UserNode extends Node {
   changeDate: string
   sequence: string
 }
+
+/**
+ * A user as the schema returns it: `union UserNode = HumanUser | MachineUser`.
+ *
+ * This used to be the interface above, which Pylon published as an interface
+ * `IUserNode` plus a phantom object type `UserNode` that nothing ever
+ * instantiated, and whose runtime type resolution failed on a real page
+ * ("Abstract type IUserNode must resolve to an Object type"). The consumers
+ * of this facade were generated against a union of exactly these two types
+ * and select with `... on HumanUser`, so the union is the shape to keep.
+ */
+export type UserNode = HumanUser | MachineUser
 
 export interface RoleNode extends Node {
   key: string

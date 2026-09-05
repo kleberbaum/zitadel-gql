@@ -1,5 +1,15 @@
 // src/index.ts
-import {app, useAuth, type PylonConfig} from '@getcronit/pylon'
+import {app, useAuth, type Plugin, type PylonConfig} from '@getcronit/pylon'
+import {
+  isAbstractType,
+  Kind,
+  TypeInfo,
+  visit,
+  visitWithTypeInfo,
+  type DocumentNode,
+  type GraphQLSchema,
+  type SelectionSetNode
+} from 'graphql'
 import {UserServices} from './user'
 import {OrganizationServices} from './organization/services'
 import {ProjectServices} from './project/services'
@@ -132,8 +142,70 @@ if (!process.env.AUTH_KEY) {
   )
 }
 
+/**
+ * Pylon resolves an interface or union member by looking at which fields the
+ * projected object carries, and that object holds only the fields the client
+ * selected. A HumanUser selected as `... on HumanUser { id userName }` reaches
+ * the generated resolver as `{id, userName}`, the check for `preferences`
+ * fails, and the whole page dies with "Abstract type UserNode must resolve to
+ * an Object type at runtime" (the same failure the previous interface shape
+ * showed). Two things put that right, in one plugin.
+ *
+ * Every node class sets `__typename`, and the projection keeps it whenever
+ * the document selects it. So the document is completed first: each
+ * selection set on an abstract type gets `__typename` added unless it is
+ * there already (GQty adds it for every `$on`, other clients may not). Then
+ * the resolver reads it, and Pylon's field guess remains the fallback for
+ * whatever the rewrite did not reach. The answer therefore carries
+ * `__typename` on user nodes even when nobody asked, which every client
+ * tolerates and the ones built for a union expect anyway.
+ */
+function withTypename(schema: GraphQLSchema, document: DocumentNode): DocumentNode {
+  const typeInfo = new TypeInfo(schema)
+  const typename = {kind: Kind.FIELD, name: {kind: Kind.NAME, value: '__typename'}} as const
+
+  return visit(
+    document,
+    visitWithTypeInfo(typeInfo, {
+      SelectionSet(node): SelectionSetNode | undefined {
+        if (!isAbstractType(typeInfo.getParentType())) return undefined
+        const present = node.selections.some(
+          selection => selection.kind === Kind.FIELD && selection.name.value === '__typename'
+        )
+        if (present) return undefined
+        return {...node, selections: [typename, ...node.selections]}
+      }
+    })
+  )
+}
+
+const useTypenameResolution: Plugin = (() => {
+  let current: GraphQLSchema | undefined
+
+  return {
+    onSchemaChange({schema}) {
+      current = schema
+      for (const type of Object.values(schema.getTypeMap())) {
+        if (!isAbstractType(type)) continue
+        const generated = type.resolveType
+        type.resolveType = (value, context, info, abstract) => {
+          const name = (value as {__typename?: unknown} | null)?.__typename
+          if (typeof name === 'string') return name
+          return generated?.(value, context, info, abstract)
+        }
+      }
+    },
+    onParse() {
+      return ({result, replaceParseResult}) => {
+        if (!current || !result || result instanceof Error) return
+        replaceParseResult(withTypename(current, result))
+      }
+    }
+  }
+})()
+
 export const config: PylonConfig = {
-  plugins: [useAuth({issuer: authIssuer})]
+  plugins: [useTypenameResolution, useAuth({issuer: authIssuer})]
 }
 
 // Bun serves the default export directly. On Cloudflare Workers the same
