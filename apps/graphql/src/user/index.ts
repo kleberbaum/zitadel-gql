@@ -12,7 +12,7 @@ import type {
   ZitadelUserUpdateInput
 } from '../zitadel/types'
 
-import type {ZitadelUserGrant} from '../zitadel/types'
+import type {GrantsLoader, ZitadelUserGrant} from '../zitadel/types'
 import {
   createAuthorization as zitadelCreateAuthorization,
   createUser as zitadelCreateUser,
@@ -131,11 +131,12 @@ function mapUserState(state: number): UserState {
  * GraphQL inline fragments are resolved using the runtime class (prototype),
  * not a `type` field.
  *
- * `grants` are the authorizations a list already read for this user. A node
- * built with them answers roles and grants from memory. A node built without
- * (the single-user lookups) fetches them once when first asked.
+ * `grants` are the authorizations a list already read for this user, or the
+ * loader a list hands to every node of its page (see pageGrantsLoader). A
+ * node built without either (the single-user lookups) fetches its own grants
+ * once when first asked. Nothing is read for a query that never asks.
  */
-function toUserModel(z: ProtoUser, grants?: ZitadelUserGrant[]): UserNode {
+function toUserModel(z: ProtoUser, grants?: ZitadelUserGrant[] | GrantsLoader): UserNode {
   const details = z.details
 
   const base = {
@@ -182,6 +183,23 @@ function toUserModel(z: ProtoUser, grants?: ZitadelUserGrant[]): UserNode {
     gender: mapGender(profile?.gender),
     grants
   })
+}
+
+/**
+ * One ListAuthorizations for a whole page, deferred until a node of the page
+ * is asked for roles or grants, then shared by every node of it. A query
+ * that selects only ids or profiles costs the ListUsers alone. The promise
+ * is created on the first ask, so a page whose grants were never wanted
+ * never reaches Zitadel for them. A failed read logs once per node and
+ * reads as no grants, which is the same answer a wrong-organization token
+ * gets, so an all-empty page is a reason to check the token, not proof.
+ */
+function pageGrantsLoader(userIds: string[], organizationId?: string): (userId: string) => GrantsLoader {
+  let page: Promise<Map<string, ZitadelUserGrant[]>> | undefined
+  return userId => () => {
+    if (!page) page = listGrantsForUsers(userIds, organizationId)
+    return page.then(grants => grants.get(userId) ?? [])
+  }
 }
 
 /**
@@ -307,18 +325,19 @@ export class UserServices {
     }
 
     const p = (async () => {
-      // Two calls for the whole page: the users, then the grants of exactly
-      // those users. Each node gets its own grants, so a query asking for
-      // roles and profiles on twenty accounts costs these two round trips
-      // and nothing per account. It used to be one ListAuthorizations per
-      // user, resolved lazily from HumanUser.roles, which is where the
+      // Two calls for the whole page at most: the users now, and the grants
+      // of exactly those users once, when the first node is asked for roles
+      // or grants. A query asking for roles and profiles on twenty accounts
+      // costs these two round trips and nothing per account, a query for ids
+      // and names costs the first alone. It used to be one ListAuthorizations
+      // per user, resolved lazily from HumanUser.roles, which is where the
       // seconds went.
       const raw = await listZitadelUsers(limit, args?.organizationId)
-      const grants = await listGrantsForUsers(
+      const grantsOf = pageGrantsLoader(
         raw.map(u => u.userId),
         args?.organizationId
       )
-      const items = raw.map(u => toUserModel(u, grants.get(u.userId) ?? []))
+      const items = raw.map(u => toUserModel(u, grantsOf(u.userId)))
       cache.set(key, items)
       return items
     })().finally(() => inflight.delete(key))

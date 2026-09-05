@@ -1,6 +1,6 @@
 // src/user/HumanUser.ts
 import type {ID} from '../types'
-import type {ZitadelProjectRole, ZitadelUserGrant} from '../zitadel/types'
+import type {GrantsLoader, ZitadelProjectRole, ZitadelUserGrant} from '../zitadel/types'
 import {getUserGrants, flattenRolesFromGrants} from '../zitadel/users'
 import {encodeCursor, paginateWindow} from '../relay/relay'
 import {PageInfo} from '../relay/PageInfo'
@@ -40,6 +40,7 @@ export class HumanUser implements UserFields {
   public preferences: Preferences
 
   private _grantsP?: Promise<ZitadelUserGrant[]>
+  private _grantsLoader?: GrantsLoader
   private _rolesP?: Promise<ZitadelProjectRole[]>
 
   private _profileBase: {
@@ -76,11 +77,13 @@ export class HumanUser implements UserFields {
     gender?: Gender
 
     /**
-     * Grants already read for this user, by the list that produced it. With
-     * them present, roles and grants resolve from memory and no request goes
-     * to Zitadel for this user. Without them, the first ask fetches once.
+     * The grants of this user, either already read by the list that produced
+     * it, or a loader the list hands to every node of a page, which reads the
+     * page's grants in one call the first time any node is asked. Without
+     * either, the first ask fetches this user's grants once. In every case
+     * roles and grants then resolve from memory.
      */
-    grants?: ZitadelUserGrant[]
+    grants?: ZitadelUserGrant[] | GrantsLoader
   }) {
     this.id = base.id
     this.state = base.state
@@ -108,12 +111,14 @@ export class HumanUser implements UserFields {
       preferredLanguage: base.preferredLanguage
     }
 
-    if (base.grants) this._grantsP = Promise.resolve(base.grants)
+    if (typeof base.grants === 'function') this._grantsLoader = base.grants
+    else if (base.grants) this._grantsP = Promise.resolve(base.grants)
   }
 
   private async _getGrants(): Promise<ZitadelUserGrant[]> {
     if (!this._grantsP) {
-      this._grantsP = getUserGrants(String(this.id), this.resourceOwner).catch(e => {
+      const load = this._grantsLoader ?? (() => getUserGrants(String(this.id), this.resourceOwner))
+      this._grantsP = load().catch(e => {
         console.error('Failed to fetch grants for user', this.id, e)
         return []
       })

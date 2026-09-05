@@ -6,6 +6,13 @@ export interface ZitadelProjectRole {
   displayName?: string
 }
 
+/**
+ * A deferred read of one user's grants. A list hands one to every node of a
+ * page so the page's grants cost one Zitadel call, made only when a query
+ * asks for roles or grants, and shared by all nodes of that page.
+ */
+export type GrantsLoader = () => Promise<ZitadelUserGrant[]>
+
 export interface ZitadelUserGrant {
   /**
    * The user the authorization belongs to. Set when the grant came out of a
