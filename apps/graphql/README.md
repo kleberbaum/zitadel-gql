@@ -160,15 +160,16 @@ execution on the password RPCs, see [`../docs/lens.md`](https://github.com/netsn
 
 ## Round trips per request
 
-`users` and `usersByRole` cost two Zitadel calls for a whole page, whatever
-the page asks for. `users` is one `ListUsers` (both user types, filtered by
-the organization when one is known) and one `ListAuthorizations` over
-exactly the ids of that page. `usersByRole` is one `ListAuthorizations`
-filtered by the role key and one `ListUsers` over the ids it returned. Each
-`HumanUser` and `MachineUser` gets the grants that were read for it, so
-`roles` and `grants` resolve from memory; `profiles` always did. A user
-built by `user` or `currentUser` has no grants yet and fetches them once,
-when first asked. The transport logs every call as
+`users` and `usersByRole` cost at most two Zitadel calls for a whole page.
+`users` is one `ListUsers` (both user types, filtered by the organization
+when one is known) and, only when a node of the page is asked for `roles` or
+`grants`, one `ListAuthorizations` over exactly the ids of that page, made
+once and shared by every node of it. A page that selects ids and profiles
+costs the `ListUsers` alone. `usersByRole` is one `ListAuthorizations`
+filtered by the role key and one `ListUsers` over the ids it returned, and
+each user carries the grants of the first call. `profiles` always resolved
+from memory. A user built by `user` or `currentUser` has no grants yet and
+fetches them once, when first asked. The transport logs every call as
 `zitadel-gql: <Method> <ms> ms` at info level, so the count behind a request
 can be read off the log.
 
