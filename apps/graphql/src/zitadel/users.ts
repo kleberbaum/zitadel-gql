@@ -6,7 +6,7 @@ import {InvalidInputError} from '../errors/general.errors'
 import {timestampDate} from '@bufbuild/protobuf/wkt'
 import {getContext} from '@getcronit/pylon'
 
-import {getZitadelClients, createCallOptions} from './client'
+import {getZitadelClients, createCallOptions, getDefaultOrgId} from './client'
 import type {
   ZitadelAuthorizationCreateInput,
   ZitadelAuthorizationUpdateInput,
@@ -42,6 +42,8 @@ import {
 import {
   SearchQuerySchema as UserSearchQuerySchema,
   EmailQuerySchema,
+  InUserIDQuerySchema,
+  OrganizationIdQuerySchema,
   TypeQuerySchema,
   UserNameQuerySchema,
   OrQuerySchema,
@@ -65,7 +67,8 @@ import {
 import {
   AuthorizationsSearchFilterSchema,
   RoleKeyQuerySchema,
-  State as ProtoAuthorizationState
+  State as ProtoAuthorizationState,
+  type Authorization as ProtoAuthorization
 } from '@zitadel/proto/zitadel/authorization/v2/authorization_pb'
 import {
   InIDsFilterSchema,
@@ -171,34 +174,103 @@ export async function getZitadelUserById(userId: string, organizationId?: string
 }
 
 /**
+ * Zitadel refuses a list limit above SystemDefaults.MaxQueryLimit, 1000 by
+ * default, with Errors.Query.LimitExceeded. Every list here stays at or
+ * below it, and an id list longer than that is sent in slices.
+ */
+const MAX_LIST_LIMIT = 1000
+
+function slices<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
+/**
+ * The search queries every user list shares: both user types, and the
+ * organization when one is known, either per call or as the deployment's
+ * ZITADEL_ORG_ID. The org filter is deliberate rather than left to the
+ * token's own scope: a facade deployed for one brand must never list the
+ * neighbouring organization, whatever the caller's token could see.
+ */
+function userListQueries(organizationId: string | undefined, userIds?: string[]) {
+  const queries = [
+    create(UserSearchQuerySchema, {
+      query: {
+        case: 'orQuery',
+        value: create(OrQuerySchema, {
+          queries: [
+            create(UserSearchQuerySchema, {
+              query: {case: 'typeQuery', value: create(TypeQuerySchema, {type: ProtoUserType.HUMAN})}
+            }),
+            create(UserSearchQuerySchema, {
+              query: {case: 'typeQuery', value: create(TypeQuerySchema, {type: ProtoUserType.MACHINE})}
+            })
+          ]
+        })
+      }
+    })
+  ]
+
+  const orgId = organizationId ?? getDefaultOrgId()
+  if (orgId) {
+    queries.push(
+      create(UserSearchQuerySchema, {
+        query: {case: 'organizationIdQuery', value: create(OrganizationIdQuerySchema, {organizationId: orgId})}
+      })
+    )
+  }
+
+  if (userIds) {
+    queries.push(
+      create(UserSearchQuerySchema, {
+        query: {case: 'inUserIdsQuery', value: create(InUserIDQuerySchema, {userIds})}
+      })
+    )
+  }
+
+  return queries
+}
+
+/**
  * List users of both types (human and machine), like the old v1 search did.
+ * One ListUsers call.
  */
 export async function listZitadelUsers(limit = 100, organizationId?: string): Promise<ProtoUser[]> {
   const clients = getZitadelClients()
 
   const request = create(ListUsersRequestSchema, {
-    query: create(ListQuerySchema, {limit, asc: true}),
-    queries: [
-      create(UserSearchQuerySchema, {
-        query: {
-          case: 'orQuery',
-          value: create(OrQuerySchema, {
-            queries: [
-              create(UserSearchQuerySchema, {
-                query: {case: 'typeQuery', value: create(TypeQuerySchema, {type: ProtoUserType.HUMAN})}
-              }),
-              create(UserSearchQuerySchema, {
-                query: {case: 'typeQuery', value: create(TypeQuerySchema, {type: ProtoUserType.MACHINE})}
-              })
-            ]
-          })
-        }
-      })
-    ]
+    query: create(ListQuerySchema, {limit: Math.min(limit, MAX_LIST_LIMIT), asc: true}),
+    queries: userListQueries(organizationId)
   })
 
   const response = await clients.users.listUsers(request, createCallOptions(organizationId))
   return response.result ?? []
+}
+
+/**
+ * The users behind a list of ids, in one ListUsers call (one per thousand
+ * ids). The answer keeps the order of the ids, and an id Zitadel does not
+ * answer for is simply absent, exactly as the former one-GetUser-per-id loop
+ * treated a failed lookup.
+ */
+export async function listZitadelUsersByIds(userIds: string[], organizationId?: string): Promise<ProtoUser[]> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)))
+  if (ids.length === 0) return []
+
+  const clients = getZitadelClients()
+  const byId = new Map<string, ProtoUser>()
+
+  for (const slice of slices(ids, MAX_LIST_LIMIT)) {
+    const request = create(ListUsersRequestSchema, {
+      query: create(ListQuerySchema, {limit: slice.length, asc: true}),
+      queries: userListQueries(organizationId, slice)
+    })
+    const response = await clients.users.listUsers(request, createCallOptions(organizationId))
+    for (const u of response.result ?? []) byId.set(u.userId, u)
+  }
+
+  return ids.map(id => byId.get(id)).filter((u): u is ProtoUser => !!u)
 }
 
 /**
@@ -475,8 +547,26 @@ function authorizationStateToString(state: number): string {
   }
 }
 
+function authorizationToGrant(a: ProtoAuthorization): ZitadelUserGrant {
+  return {
+    userId: a.user?.id,
+    organizationId: a.organization?.id,
+    creationDate: tsToIso(a.creationDate),
+    changeDate: tsToIso(a.changeDate),
+    projectId: a.project?.id,
+    projectName: a.project?.name,
+    state: authorizationStateToString(a.state),
+    roles: (a.roles ?? []).map(r => ({
+      key: r.key,
+      displayName: r.displayName || roleDisplayNameFromKey(r.key)
+    }))
+  }
+}
+
 /**
- * Fetch grants for a user via authorization/v2. Cached per request.
+ * Fetch grants for a user via authorization/v2. Cached per request. This is
+ * the lookup behind a single user (user, currentUser): the lists below hand
+ * their users the grants up front and never reach it.
  */
 export async function getUserGrants(userId: string, organizationId?: string): Promise<ZitadelUserGrant[]> {
   const maps = requestScopedMaps<ZitadelUserGrant[], ZitadelUserGrant[]>('zitadelUserGrantCache')
@@ -499,24 +589,65 @@ export async function getUserGrants(userId: string, organizationId?: string): Pr
       })
 
       const response = await clients.auth.listAuthorizations(request, createCallOptions(organizationId))
-
-      return (response.authorizations ?? []).map(a => ({
-        organizationId: a.organization?.id,
-        creationDate: tsToIso(a.creationDate),
-        changeDate: tsToIso(a.changeDate),
-        projectId: a.project?.id,
-        projectName: a.project?.name,
-        state: authorizationStateToString(a.state),
-        roles: (a.roles ?? []).map(r => ({
-          key: r.key,
-          displayName: r.displayName || roleDisplayNameFromKey(r.key)
-        }))
-      }))
+      return (response.authorizations ?? []).map(authorizationToGrant)
     } catch (e) {
       console.error('Failed to fetch grants for user', userId, e)
       return []
     }
   })
+}
+
+/**
+ * The grants of a whole page of users in one ListAuthorizations call (one
+ * per thousand ids), keyed by user id. Every requested id is present in the
+ * answer, with an empty list when Zitadel returned nothing for it, so a user
+ * built from this map never falls back to a lookup of its own.
+ *
+ * The call runs with the caller's token and the organization header like
+ * every other one. Note the trap that applies to it: a token scoped to
+ * another organization is not refused here, it is answered with an empty
+ * list, so an all-empty map is a reason to check the token, not proof that
+ * nobody holds a role.
+ */
+export async function listGrantsForUsers(
+  userIds: string[],
+  organizationId?: string
+): Promise<Map<string, ZitadelUserGrant[]>> {
+  const grants = new Map<string, ZitadelUserGrant[]>()
+  const ids = Array.from(new Set(userIds.filter(Boolean)))
+  for (const id of ids) grants.set(id, [])
+  if (ids.length === 0) return grants
+
+  const clients = getZitadelClients()
+
+  for (const slice of slices(ids, MAX_LIST_LIMIT)) {
+    const request = create(ListAuthorizationsRequestSchema, {
+      pagination: create(PaginationRequestSchema, {limit: MAX_LIST_LIMIT, asc: true}),
+      filters: [
+        create(AuthorizationsSearchFilterSchema, {
+          filter: {case: 'inUserIds', value: create(InIDsFilterSchema, {ids: slice})}
+        })
+      ]
+    })
+
+    const response = await clients.auth.listAuthorizations(request, createCallOptions(organizationId))
+    const total = Number(response.pagination?.totalResult ?? 0)
+    if (total > MAX_LIST_LIMIT) {
+      console.warn(
+        `zitadel-gql: ${total} authorizations for ${slice.length} users, only the first ${MAX_LIST_LIMIT} were read`
+      )
+    }
+
+    for (const a of response.authorizations ?? []) {
+      const g = authorizationToGrant(a)
+      if (!g.userId) continue
+      const list = grants.get(g.userId)
+      if (list) list.push(g)
+      else grants.set(g.userId, [g])
+    }
+  }
+
+  return grants
 }
 
 /**
@@ -544,14 +675,32 @@ export function flattenRolesFromGrants(grants: ZitadelUserGrant[]): ZitadelProje
 }
 
 /**
- * Users holding a role, resolved server side through the roleKey filter
- * instead of scanning all users like the old v1 implementation did.
+ * A user together with the grants that were read for it, so the resolvers
+ * can hand both to the model at once.
  */
-export async function listUsersByRole(roleKey: string, limit = 100, organizationId?: string): Promise<ProtoUser[]> {
+export interface UserWithGrants {
+  user: ProtoUser
+  grants: ZitadelUserGrant[]
+}
+
+/**
+ * Users holding a role, in two calls: one ListAuthorizations filtered by the
+ * role key, then the users behind those authorizations in one ListUsers by
+ * id. Each user gets the authorizations that call returned for it, which is
+ * every authorization carrying the role. A role a user holds through a
+ * second authorization that does not carry this key is not among them, and
+ * that is the trade the two-call shape makes; the single-user lookup
+ * (getUserGrants) still reads everything.
+ */
+export async function listUsersByRole(
+  roleKey: string,
+  limit = 100,
+  organizationId?: string
+): Promise<UserWithGrants[]> {
   const clients = getZitadelClients()
 
   const request = create(ListAuthorizationsRequestSchema, {
-    pagination: create(PaginationRequestSchema, {limit, asc: true}),
+    pagination: create(PaginationRequestSchema, {limit: Math.min(limit, MAX_LIST_LIMIT), asc: true}),
     filters: [
       create(AuthorizationsSearchFilterSchema, {
         filter: {
@@ -564,16 +713,17 @@ export async function listUsersByRole(roleKey: string, limit = 100, organization
 
   const response = await clients.auth.listAuthorizations(request, createCallOptions(organizationId))
 
-  const userIds = Array.from(
-    new Set((response.authorizations ?? []).map(a => a.user?.id).filter((id): id is string => !!id))
-  )
-
-  const users: ProtoUser[] = []
-  for (const id of userIds) {
-    const user = await getZitadelUserById(id, organizationId).catch(() => null)
-    if (user) users.push(user)
+  const grantsByUser = new Map<string, ZitadelUserGrant[]>()
+  for (const a of response.authorizations ?? []) {
+    const g = authorizationToGrant(a)
+    if (!g.userId) continue
+    const list = grantsByUser.get(g.userId)
+    if (list) list.push(g)
+    else grantsByUser.set(g.userId, [g])
   }
-  return users
+
+  const users = await listZitadelUsersByIds(Array.from(grantsByUser.keys()), organizationId)
+  return users.map(user => ({user, grants: grantsByUser.get(user.userId) ?? []}))
 }
 
 // --------------------------------------------------

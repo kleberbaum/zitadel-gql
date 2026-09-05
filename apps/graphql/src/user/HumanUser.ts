@@ -74,6 +74,13 @@ export class HumanUser implements UserFields {
     lastName?: string
     nickName?: string
     gender?: Gender
+
+    /**
+     * Grants already read for this user, by the list that produced it. With
+     * them present, roles and grants resolve from memory and no request goes
+     * to Zitadel for this user. Without them, the first ask fetches once.
+     */
+    grants?: ZitadelUserGrant[]
   }) {
     this.id = base.id
     this.state = base.state
@@ -100,6 +107,8 @@ export class HumanUser implements UserFields {
     this.preferences = {
       preferredLanguage: base.preferredLanguage
     }
+
+    if (base.grants) this._grantsP = Promise.resolve(base.grants)
   }
 
   private async _getGrants(): Promise<ZitadelUserGrant[]> {

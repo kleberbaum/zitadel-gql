@@ -12,6 +12,7 @@ import type {
   ZitadelUserUpdateInput
 } from '../zitadel/types'
 
+import type {ZitadelUserGrant} from '../zitadel/types'
 import {
   createAuthorization as zitadelCreateAuthorization,
   createUser as zitadelCreateUser,
@@ -20,6 +21,7 @@ import {
   deleteUser as zitadelDeleteUser,
   getIsUnique,
   getZitadelUserById,
+  listGrantsForUsers,
   listProjectRoles,
   listUsersByRole as listZitadelUsersByRole,
   listZitadelUsers,
@@ -128,8 +130,12 @@ function mapUserState(state: number): UserState {
  * Convert a user/v2 proto User into the correct concrete GraphQL node instance.
  * GraphQL inline fragments are resolved using the runtime class (prototype),
  * not a `type` field.
+ *
+ * `grants` are the authorizations a list already read for this user. A node
+ * built with them answers roles and grants from memory. A node built without
+ * (the single-user lookups) fetches them once when first asked.
  */
-function toUserModel(z: ProtoUser): UserNode {
+function toUserModel(z: ProtoUser, grants?: ZitadelUserGrant[]): UserNode {
   const details = z.details
 
   const base = {
@@ -146,7 +152,7 @@ function toUserModel(z: ProtoUser): UserNode {
 
   // IMPORTANT: real MachineUser instance so `... on MachineUser` works
   if (z.type.case === 'machine') {
-    return new MachineUser(base)
+    return new MachineUser({...base, grants})
   }
 
   const human = z.type.case === 'human' ? z.type.value : undefined
@@ -173,7 +179,8 @@ function toUserModel(z: ProtoUser): UserNode {
     firstName: firstName || undefined,
     lastName: lastName || undefined,
     nickName: profile?.nickName || undefined,
-    gender: mapGender(profile?.gender)
+    gender: mapGender(profile?.gender),
+    grants
   })
 }
 
@@ -300,8 +307,18 @@ export class UserServices {
     }
 
     const p = (async () => {
+      // Two calls for the whole page: the users, then the grants of exactly
+      // those users. Each node gets its own grants, so a query asking for
+      // roles and profiles on twenty accounts costs these two round trips
+      // and nothing per account. It used to be one ListAuthorizations per
+      // user, resolved lazily from HumanUser.roles, which is where the
+      // seconds went.
       const raw = await listZitadelUsers(limit, args?.organizationId)
-      const items = raw.map(toUserModel)
+      const grants = await listGrantsForUsers(
+        raw.map(u => u.userId),
+        args?.organizationId
+      )
+      const items = raw.map(u => toUserModel(u, grants.get(u.userId) ?? []))
       cache.set(key, items)
       return items
     })().finally(() => inflight.delete(key))
@@ -339,8 +356,11 @@ export class UserServices {
     }
 
     const p = (async () => {
+      // One ListAuthorizations by role key, one ListUsers by id, and the
+      // grants from the first call travel with each user (see
+      // listUsersByRole for what that leaves out).
       const raw = await listZitadelUsersByRole(args.roleKey, limit, args.organizationId)
-      const items = raw.map(toUserModel)
+      const items = raw.map(({user, grants}) => toUserModel(user, grants))
       cache.set(key, items)
       return items
     })().finally(() => inflight.delete(key))

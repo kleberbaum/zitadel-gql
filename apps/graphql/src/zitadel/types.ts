@@ -7,6 +7,12 @@ export interface ZitadelProjectRole {
 }
 
 export interface ZitadelUserGrant {
+  /**
+   * The user the authorization belongs to. Set when the grant came out of a
+   * list that covered several users at once, so it can be handed to the
+   * right user without a second lookup.
+   */
+  userId?: string
   organizationId?: string
   creationDate?: string
   changeDate?: string
