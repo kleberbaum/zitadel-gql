@@ -1,5 +1,6 @@
 // src/index.ts
 import {app, useAuth, type Plugin, type PylonConfig} from '@getcronit/pylon'
+import {createHash} from 'node:crypto'
 import {
   isAbstractType,
   Kind,
@@ -143,6 +144,61 @@ if (!process.env.AUTH_KEY) {
 }
 
 /**
+ * Pylon's useAuth introspects the bearer token and fetches the userinfo on
+ * every request, two round trips to the public issuer before any resolver
+ * runs. In the cluster that is the whole latency budget of a user list, and
+ * the caller is nearly always a backend sending the same long-lived service
+ * token. So a token that introspected as active is remembered for a short
+ * while, keyed by its hash, and the next request with it skips both round
+ * trips. Zitadel still sees the token itself on every RPC the request makes
+ * and refuses a revoked one there, so the cache decides only whether the
+ * request reaches a resolver, never what Zitadel answers.
+ *
+ * AUTH_CACHE_TTL_MS sets the window, 60 s by default, 0 switches the cache
+ * off. Anonymous requests are not affected.
+ */
+const AUTH_CACHE_TTL_MS = Number(process.env.AUTH_CACHE_TTL_MS ?? 60_000)
+const AUTH_CACHE_MAX_ENTRIES = 1000
+
+type AuthState = {user?: unknown; openidConfig: unknown}
+const authCache = new Map<string, {state: AuthState; expires: number}>()
+
+function withIntrospectionCache(base: Plugin): Plugin {
+  const middleware = base.middleware
+  if (!middleware || !(AUTH_CACHE_TTL_MS > 0)) return base
+
+  return {
+    ...base,
+    middleware: async (ctx, next) => {
+      const header = ctx.req.header('Authorization')
+      const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined
+      if (!token) return middleware(ctx, next)
+
+      const key = createHash('sha256').update(token).digest('hex')
+      const hit = authCache.get(key)
+      if (hit && hit.expires > Date.now()) {
+        ctx.set('auth', hit.state as any)
+        return next()
+      }
+      authCache.delete(key)
+
+      // Pylon calls a plugin middleware with a no-op next and reads nothing
+      // back, so the state is taken from the context after the base ran.
+      const response = await middleware(ctx, next)
+      const state = ctx.get('auth') as AuthState | undefined
+      if (state?.user) {
+        if (authCache.size >= AUTH_CACHE_MAX_ENTRIES) {
+          const oldest = authCache.keys().next().value
+          if (oldest !== undefined) authCache.delete(oldest)
+        }
+        authCache.set(key, {state, expires: Date.now() + AUTH_CACHE_TTL_MS})
+      }
+      return response
+    }
+  }
+}
+
+/**
  * Pylon resolves an interface or union member by looking at which fields the
  * projected object carries, and that object holds only the fields the client
  * selected. A HumanUser selected as `... on HumanUser { id userName }` reaches
@@ -205,7 +261,7 @@ const useTypenameResolution: Plugin = (() => {
 })()
 
 export const config: PylonConfig = {
-  plugins: [useTypenameResolution, useAuth({issuer: authIssuer})]
+  plugins: [useTypenameResolution, withIntrospectionCache(useAuth({issuer: authIssuer}))]
 }
 
 // Bun serves the default export directly. On Cloudflare Workers the same
