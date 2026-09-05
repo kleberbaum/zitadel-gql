@@ -100,17 +100,28 @@ Pylon's dist statically reaches its build-time chunk, which imports ts-morph,
 and wrangler's bundler must resolve that specifier even though the code never
 runs in the Worker. Verified with `wrangler deploy --dry-run`.
 
-### Container (bun runtime, walther microk8s)
+### Container (bun runtime, microk8s)
 
 The `Dockerfile` builds a bun image that runs `bun .pylon/index.js` and
-listens on port 3000. `src/proto` must exist in the build context, so run the
-proto generation before `docker build`.
+listens on port 3000. The build context is this directory, and the app
+consumes `@zitadel/proto` by path from outside it, so the generated package
+is copied into the context first: `scripts/vendor-proto.sh` puts it under
+`vendor/zitadel-proto` (gitignored), and the Dockerfile places it at
+`/packages/zitadel-proto`, where the `file:../../packages/zitadel-proto` in
+`bun.lock` resolves to from the hermetic install directories. Bun links the
+package with absolute symlinks and resolves its own imports from there, so
+the directory ships in the release image too, with the app's pinned
+`@bufbuild/protobuf` beside it.
 
 ```sh
-bun run generate
-docker build -t idm .
-docker run -p 3000:3000 -e AUTH_ISSUER=... -e AUTH_KEY=... idm
+pnpm --filter @zitadel/proto generate   # once, at the repository root
+./scripts/vendor-proto.sh
+podman build --platform linux/amd64 -t idm-facade:<tag> .
+podman run -p 3000:3000 -e AUTH_ISSUER=... -e AUTH_KEY=... idm-facade:<tag>
 ```
+
+On a host without a registry, `podman save idm-facade:<tag> | ssh <node>
+'microk8s ctr image import -'` ships the image straight into containerd.
 
 ## Environment variables
 
@@ -120,7 +131,8 @@ docker run -p 3000:3000 -e AUTH_ISSUER=... -e AUTH_KEY=... idm
 | `AUTH_KEY`            | yes      | API app key JSON for the `useAuth` introspection client (`private_key_jwt`), secret-backed.   |
 | `ZITADEL_BASE_URL`    | no       | Zitadel API base URL if it differs from `AUTH_ISSUER` (internal addressing).                  |
 | `ZITADEL_HOST_HEADER` | no       | Host header override for in-pod localhost dialing, set to the canonical issuer host.          |
-| `ZITADEL_ORG_ID`      | no       | Default `x-zitadel-orgid` header. Explicit per-call organization ids always win.              |
+| `ZITADEL_ORG_ID`      | no       | Default `x-zitadel-orgid` header, and the organization filter of every user list. Explicit per-call organization ids always win. |
+| `AUTH_CACHE_TTL_MS`   | no       | How long an introspected bearer token is remembered, 60000 by default, 0 switches the cache off. See below. |
 | `PORT`                | no       | Listen port for the bun runtime, defaults to 3000. Ignored on Workers.                        |
 
 ## Permissions: caller-token pass-through, no exceptions
@@ -146,7 +158,49 @@ Zitadel itself (Login V2 self service and reset flows), and the estate's
 Samba and Vault synchronization hangs on an interrupting Zitadel Actions v2
 execution on the password RPCs, see [`../docs/lens.md`](https://github.com/netsnek/walther-deployment/blob/main/docs/lens.md).
 
+## Round trips per request
+
+`users` and `usersByRole` cost two Zitadel calls for a whole page, whatever
+the page asks for. `users` is one `ListUsers` (both user types, filtered by
+the organization when one is known) and one `ListAuthorizations` over
+exactly the ids of that page. `usersByRole` is one `ListAuthorizations`
+filtered by the role key and one `ListUsers` over the ids it returned. Each
+`HumanUser` and `MachineUser` gets the grants that were read for it, so
+`roles` and `grants` resolve from memory; `profiles` always did. A user
+built by `user` or `currentUser` has no grants yet and fetches them once,
+when first asked. The transport logs every call as
+`zitadel-gql: <Method> <ms> ms` at info level, so the count behind a request
+can be read off the log.
+
+Two things follow for `usersByRole`. Every user in the answer carries the
+authorizations that hold the role, which is all of them for the usual one
+authorization per project. A role a user holds through a second
+authorization without that key is not in that answer. And the answer is only
+as complete as the caller may read: Zitadel counts authorizations the token
+cannot see but does not return them, so `totalCount` can exceed the edges.
+
+The list caches are per request and unchanged.
+
+## Type resolution and `__typename`
+
+A user is `UserNode`, implemented by `HumanUser` and `MachineUser`, and the
+consumers select `... on HumanUser`. Pylon resolves the concrete type from
+the fields present on the object it projected from the selection, which a
+sparse selection defeats (a `MachineUser` has no field a `HumanUser` lacks).
+The `useTypenameResolution` plugin in `src/index.ts` adds `__typename` to
+every selection set on an abstract type before execution and lets the
+resolver read it first, Pylon's guess stays as the fallback. Answers
+therefore carry `__typename` on user nodes even when the query did not ask.
+
 ## Inbound auth
+
+Pylon's `useAuth` introspects the bearer token and fetches its userinfo on
+every request, two round trips to the public issuer before any resolver
+runs. A token that introspected as active is remembered for
+`AUTH_CACHE_TTL_MS` (60 s by default), keyed by its hash, and requests with
+it skip both. Zitadel still receives the token itself on every RPC and
+refuses a revoked one there; the cache decides only whether a request reaches
+a resolver. Anonymous requests are unaffected. `0` switches it off.
 
 Consumer requests authenticate with OIDC tokens issued by the same Zitadel
 (`useAuth({issuer: AUTH_ISSUER})`). Every mutation and every query that
