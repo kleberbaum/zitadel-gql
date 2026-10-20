@@ -1,0 +1,153 @@
+import { SignInWithIdp } from "@/components/sign-in-with-idp";
+import { isSessionValid, loadMostRecentSession } from "@/lib/session";
+import { checkUserVerification } from "@/lib/verify-helper";
+import {
+  getActiveIdentityProviders,
+  getBrandingSettings,
+  getLoginSettings,
+  getUserByID,
+  listAuthenticationMethodTypes,
+} from "@/lib/zitadel";
+import { cleanup, render } from "@testing-library/react";
+import { redirect } from "next/navigation";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import Page from "./page";
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+}));
+
+vi.mock("next-intl/server", () => ({
+  getTranslations: vi.fn(() => (key: string) => key),
+}));
+
+vi.mock("@/lib/service-url", () => ({
+  getServiceConfig: vi.fn(() => ({ serviceConfig: { baseUrl: "https://zitadel.test" } })),
+}));
+
+vi.mock("@/lib/session", () => ({
+  isSessionValid: vi.fn(),
+  loadMostRecentSession: vi.fn(),
+}));
+
+vi.mock("@/lib/verify-helper", () => ({
+  checkUserVerification: vi.fn(),
+}));
+
+vi.mock("@/lib/cookies", () => ({
+  getSessionCookieById: vi.fn(),
+}));
+
+vi.mock("@/lib/zitadel", () => ({
+  getActiveIdentityProviders: vi.fn(),
+  getBrandingSettings: vi.fn(),
+  getLoginSettings: vi.fn(),
+  getSession: vi.fn(),
+  getUserByID: vi.fn(),
+  listAuthenticationMethodTypes: vi.fn(),
+}));
+
+vi.mock("@/components/dynamic-theme", () => ({
+  DynamicTheme: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/translated", () => ({
+  Translated: ({ i18nKey }: { i18nKey: string }) => <span>{i18nKey}</span>,
+}));
+
+vi.mock("@/components/alert", () => ({
+  Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
+}));
+
+vi.mock("@/components/back-button", () => ({
+  BackButton: () => <button type="button">back</button>,
+}));
+
+vi.mock("@/components/user-avatar", () => ({
+  UserAvatar: () => <div data-testid="user-avatar" />,
+}));
+
+vi.mock("@/components/choose-authenticator-to-setup", () => ({
+  ChooseAuthenticatorToSetup: () => <div data-testid="choose-authenticator" />,
+}));
+
+vi.mock("@/components/sign-in-with-idp", () => ({
+  SignInWithIdp: vi.fn(() => <div data-testid="sign-in-with-idp" />),
+}));
+
+const session = {
+  id: "session-1",
+  factors: {
+    user: { id: "user-1", loginName: "erika@example.com", organizationId: "org-walther" },
+    password: { verifiedAt: { seconds: BigInt(1), nanos: 0 } },
+  },
+};
+
+async function renderPage() {
+  const element = await Page({ searchParams: Promise.resolve({}) });
+  return render(element);
+}
+
+describe("authenticator set page", () => {
+  beforeEach(() => {
+    vi.mocked(loadMostRecentSession).mockResolvedValue(session as any);
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
+    vi.mocked(getUserByID).mockResolvedValue({ user: { type: { case: "human", value: {} } } } as any);
+    vi.mocked(getBrandingSettings).mockResolvedValue(undefined as any);
+    vi.mocked(getLoginSettings).mockResolvedValue({ allowExternalIdp: true } as any);
+    vi.mocked(getActiveIdentityProviders).mockResolvedValue({
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+    } as any);
+    vi.mocked(checkUserVerification).mockResolvedValue(false);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  test("lets a user with a valid session link an identity provider without a recent verification", async () => {
+    vi.mocked(isSessionValid).mockResolvedValue(true);
+
+    const { getByTestId } = await renderPage();
+
+    expect(isSessionValid).toHaveBeenCalledWith({ serviceConfig: expect.anything(), session });
+    expect(redirect).not.toHaveBeenCalled();
+    expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
+    expect(vi.mocked(SignInWithIdp).mock.calls[0][0]).toMatchObject({
+      sessionId: "session-1",
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+    });
+    expect(getActiveIdentityProviders).toHaveBeenCalledWith({
+      serviceConfig: expect.anything(),
+      orgId: "org-walther",
+      linking_allowed: true,
+    });
+  });
+
+  test("keeps accepting a recent verification without asking for the session", async () => {
+    vi.mocked(checkUserVerification).mockResolvedValue(true);
+
+    const { getByTestId } = await renderPage();
+
+    expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
+    expect(isSessionValid).not.toHaveBeenCalled();
+  });
+
+  test("still sends a user without a valid session or a recent verification to /verify", async () => {
+    vi.mocked(isSessionValid).mockResolvedValue(false);
+
+    await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT");
+
+    const target = new URL(vi.mocked(redirect).mock.calls[0][0] as string, "https://login.example.com");
+    expect(target.pathname).toBe("/verify");
+    expect(target.searchParams.get("loginName")).toBe("erika@example.com");
+    expect(SignInWithIdp).not.toHaveBeenCalled();
+  });
+});

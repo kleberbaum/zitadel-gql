@@ -7,7 +7,7 @@ import { Translated } from "@/components/translated";
 import { UserAvatar } from "@/components/user-avatar";
 import { getSessionCookieById } from "@/lib/cookies";
 import { getServiceConfig } from "@/lib/service-url";
-import { loadMostRecentSession } from "@/lib/session";
+import { isSessionValid, loadMostRecentSession } from "@/lib/session";
 import { checkUserVerification } from "@/lib/verify-helper";
 import {
   getActiveIdentityProviders,
@@ -60,6 +60,7 @@ export default async function Page(props: { searchParams: Promise<Record<string 
       phoneVerified: humanUser?.phone?.isVerified ?? false,
       emailVerified: humanUser?.email?.isVerified ?? false,
       expirationDate: session?.expirationDate,
+      session,
     };
   }
 
@@ -101,8 +102,15 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     organization: sessionWithData.factors.user?.organizationId,
   });
 
-  // check if user was verified recently
-  const isUserVerified = await checkUserVerification(sessionWithData.factors.user?.id);
+  // Check if the user was verified recently (the verificationCheck cookie a
+  // new account or a verified address leaves) or holds a valid session, signed
+  // in with every factor the account requires. Without the second, a signed-in
+  // user could neither add an authenticator here nor link an identity
+  // provider, which login V1 allows. Registering a passkey accepts such a
+  // session as well (registerPasskeyLink).
+  const isUserVerified =
+    (await checkUserVerification(sessionWithData.factors.user?.id)) ||
+    (!!sessionWithData.session && (await isSessionValid({ serviceConfig, session: sessionWithData.session })));
 
   if (!isUserVerified) {
     const params = new URLSearchParams({
