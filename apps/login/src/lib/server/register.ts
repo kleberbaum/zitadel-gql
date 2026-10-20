@@ -9,6 +9,7 @@ import {
   getLoginSettings,
   getUserByID,
   listAuthenticationMethodTypes,
+  listUsersByLoginNameOrEmail,
   retrieveIDPIntent,
   ServiceConfig,
 } from "@/lib/zitadel";
@@ -58,6 +59,20 @@ async function createSessionWithRetry(command: { checks: Checks; requestId: stri
   throw lastError;
 }
 
+/**
+ * Whether an account of any organization has the address as a login name or
+ * as its email address. An address that cannot be looked up counts as taken.
+ */
+async function isAddressTaken({ serviceConfig, address }: { serviceConfig: ServiceConfig; address: string }) {
+  // Zitadel trims the username, so the address is looked up as it is stored.
+  const response = await listUsersByLoginNameOrEmail({ serviceConfig, address: address.trim() }).catch((error) => {
+    logger.error("Failed to look up the address of a registration", { error });
+    return undefined;
+  });
+
+  return !response || response.result.length > 0;
+}
+
 type RegisterUserCommand = {
   email: string;
   firstName: string;
@@ -90,6 +105,17 @@ export async function registerUser(
   // account then gets its passkey on /passkey/set below.
   if (!loginSettings.allowRegister && (command.password || !allowsPasskeyRegistration(loginSettings))) {
     return { error: t("errors.registerNotAllowed") };
+  }
+
+  // Zitadel keeps no email address unique, and addHumanUser makes the entered
+  // address the username of the new account before anyone confirmed it. So
+  // the registration with a passkey, open to anyone who reaches this page,
+  // takes no address that an account of any organization already has as a
+  // login name or as its email address. The owner's sign-in with that address
+  // would otherwise find the new account instead of theirs, or both. The
+  // answer is the one a taken username gets.
+  if (!loginSettings.allowRegister && (await isAddressTaken({ serviceConfig, address: command.email }))) {
+    return { error: t("errors.couldNotCreateUser") };
   }
 
   if (command.password && !loginSettings.allowLocalAuthentication) {

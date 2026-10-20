@@ -857,6 +857,27 @@ export async function searchUsers({
   return { result: [] };
 }
 
+/**
+ * The accounts of any organization that have the address as a login name or
+ * as their email address, compared without case. Zitadel keeps no email
+ * address unique, see registerUser.
+ */
+export async function listUsersByLoginNameOrEmail({ serviceConfig, address }: WithServiceConfig<{ address: string }>) {
+  const userService: Client<typeof UserService> = await createServiceForHost(UserService, serviceConfig);
+
+  return userService.listUsers({
+    query: userLookupQuery,
+    queries: [
+      create(SearchQuerySchema, {
+        query: {
+          case: "orQuery",
+          value: { queries: [LoginNameQuery(address), EmailQuery(address)] },
+        },
+      }),
+    ],
+  });
+}
+
 export async function getDefaultOrg({ serviceConfig }: WithServiceConfig): Promise<Organization | null> {
   const fetcher = async () => {
     const orgService: Client<typeof OrganizationService> = await createServiceForHost(OrganizationService, serviceConfig);

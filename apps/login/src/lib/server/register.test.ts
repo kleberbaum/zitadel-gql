@@ -37,6 +37,7 @@ vi.mock("../zitadel", () => ({
   getLoginSettings: vi.fn(),
   getUserByID: vi.fn(),
   listAuthenticationMethodTypes: vi.fn(),
+  listUsersByLoginNameOrEmail: vi.fn(),
   retrieveIDPIntent: vi.fn(),
 }));
 
@@ -473,6 +474,7 @@ describe("registerUser", () => {
       vi.stubEnv("PASSKEY_REGISTRATION", "true");
       vi.stubEnv("EMAIL_VERIFICATION", "true");
       closedWithPasskeys();
+      vi.mocked(zitadel.listUsersByLoginNameOrEmail).mockResolvedValue({ result: [] } as any);
       vi.mocked(zitadel.addHumanUser).mockResolvedValue({ userId: "user-1" } as any);
       vi.mocked(cookie.createSessionAndUpdateCookie).mockResolvedValue({ session } as any);
       vi.mocked(nextHeaders.cookies).mockResolvedValue({ set: setCookie } as any);
@@ -525,6 +527,35 @@ describe("registerUser", () => {
       expect(zitadel.addHumanUser).not.toHaveBeenCalled();
     });
 
+    test("looks the address up in every organization before the account is made", async () => {
+      await registerUser({ ...passkeyCommand, email: "  person@example.com " });
+
+      expect(zitadel.listUsersByLoginNameOrEmail).toHaveBeenCalledWith({
+        serviceConfig: expect.anything(),
+        address: "person@example.com",
+      });
+      expect(zitadel.addHumanUser).toHaveBeenCalledTimes(1);
+    });
+
+    test("refuses an address another account has as login name or email, as a taken username", async () => {
+      vi.mocked(zitadel.listUsersByLoginNameOrEmail).mockResolvedValue({ result: [{ userId: "approver-1" }] } as any);
+
+      const result = await registerUser({ ...passkeyCommand, email: "approver@example.com" });
+
+      expect(result).toEqual({ error: "errors.couldNotCreateUser" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+      expect(cookie.createSessionAndUpdateCookie).not.toHaveBeenCalled();
+    });
+
+    test("refuses when the address cannot be looked up", async () => {
+      vi.mocked(zitadel.listUsersByLoginNameOrEmail).mockRejectedValue(new Error("unavailable"));
+
+      const result = await registerUser(passkeyCommand);
+
+      expect(result).toEqual({ error: "errors.couldNotCreateUser" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
     test("refuses when the login policy of the organization does not allow passkeys", async () => {
       closedWithPasskeys({ passkeysType: PasskeysType.NOT_ALLOWED });
 
@@ -561,6 +592,7 @@ describe("registerUser", () => {
 
       expect(result).toEqual({ redirect: "https://wiki.example.com/callback" });
       expect(zitadel.addHumanUser).toHaveBeenCalledWith(expect.objectContaining({ password: "Secret-Passw0rd" }));
+      expect(zitadel.listUsersByLoginNameOrEmail).not.toHaveBeenCalled();
     });
   });
 });
