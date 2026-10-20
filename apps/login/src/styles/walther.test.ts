@@ -32,6 +32,44 @@ function selectors(stylesheet: string): string[] {
     });
 }
 
+/** The declarations of the rule whose selector list is exactly this one. */
+function declarations(selector: string): Record<string, string> {
+  const rule = css
+    .split("}")
+    .map((block) => block.split("{"))
+    .find(([list]) => list.trim() === selector);
+  expect(rule, selector).toBeDefined();
+  return Object.fromEntries(
+    rule![1]
+      .split(";")
+      .map((declaration) => declaration.split(":").map((part) => part.trim()))
+      .filter(([property]) => property)
+      .map(([property, ...value]) => [property, value.join(":")]),
+  );
+}
+
+/** A colour given as #rrggbb, in sRGB channels. */
+function channels(colour: string): number[] {
+  const hex = colour.match(/^#([0-9a-f]{6})$/i);
+  expect(hex, colour).not.toBeNull();
+  return [0, 2, 4].map((i) => parseInt(hex![1].slice(i, i + 2), 16));
+}
+
+/** The contrast ratio of two colours, as WCAG 2 defines it. */
+function contrast(a: number[], b: number[]): number {
+  const luminance = (rgb: number[]) => {
+    const [r, g, bl] = rgb.map((c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+const ROOT = "html[data-login-theme=walther]";
+
 describe("the Walther look", () => {
   test("applies only below html[data-login-theme=walther], so upstream's look stays as it is", () => {
     const all = selectors(css);
@@ -65,6 +103,18 @@ describe("the Walther look", () => {
       'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !important;',
     );
     expect(css).toContain("--radius-md: 0.75rem;");
+  });
+
+  test("keeps the white label of a hovered primary button readable in both modes", () => {
+    const hover = declarations(`${ROOT} .ztdl-button-primary:hover:not(:disabled)`);
+
+    expect(declarations(`${ROOT} .ztdl-button-primary`).color).toBe("#ffffff");
+    expect(hover["background-color"]).toBe("#046eb6");
+    expect(contrast(channels(hover["background-color"]), channels("#ffffff"))).toBeGreaterThanOrEqual(4.5);
+    // No rule for dark mode swaps in a lighter blue.
+    expect(selectors(css).filter((selector) => selector.includes(".ztdl-button-primary:hover"))).toEqual([
+      `${ROOT} .ztdl-button-primary:hover:not(:disabled)`,
+    ]);
   });
 
   test("loads no webfont, as the wiki loads none", () => {

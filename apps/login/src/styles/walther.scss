@@ -62,6 +62,11 @@ $red: (
 $white: #ffffff;
 $black: #000000;
 
+// The hover of the solid buttons. The wiki's, brand.400 and in dark mode
+// brand.300, leaves the white label at 2.5:1 and 2.1:1. The wiki's theme.700
+// is still lighter than brand.500 and keeps the label at 5.4:1 in both modes.
+$primary-hover: #046eb6;
+
 // Text and its quiet variant, as the wiki's body and its `shared.text.muted`.
 $text-light: map.get($gray, 800);
 $text-dark: rgb(255 255 255 / 92%);
@@ -284,7 +289,7 @@ html[data-login-theme="walther"] {
     color: $white;
 
     &:hover:not(:disabled) {
-      background-color: map.get($brand, 400);
+      background-color: $primary-hover;
     }
 
     &:disabled {
@@ -292,10 +297,6 @@ html[data-login-theme="walther"] {
       color: $white;
       opacity: 0.5;
     }
-  }
-
-  &.dark .ztdl-button-primary:hover:not(:disabled) {
-    background-color: map.get($brand, 300);
   }
 
   // The secondary buttons and the identity provider buttons as the wiki's
