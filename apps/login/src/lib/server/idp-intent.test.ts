@@ -558,6 +558,40 @@ describe("processIDPCallback", () => {
       expect(result.redirect).toBe("https://app.example.com/success");
     });
 
+    test("should name the link by the account's username when the provider sends no user name", async () => {
+      mockGetIDPByID.mockResolvedValue({
+        ...defaultIdp,
+        config: {
+          options: {
+            ...defaultIdp.config.options,
+            isLinkingAllowed: true,
+          },
+        },
+      });
+      mockRetrieveIDPIntent.mockResolvedValue({
+        ...defaultIntent,
+        userId: undefined,
+        idpInformation: { ...defaultIntent.idpInformation, userName: "" },
+      });
+      mockGetUserByID.mockResolvedValue({
+        user: { userId: "user123", username: "erika@example.com" },
+        details: { resourceOwner: "org123" },
+      });
+
+      const result = await processIDPCallback(linkParams);
+
+      expect(mockAddIDPLink).toHaveBeenCalledWith({
+        serviceConfig: { baseUrl: "https://api.example.com" },
+        idp: {
+          id: "idp123",
+          userId: "user123",
+          userName: "erika@example.com",
+        },
+        userId: "user123",
+      });
+      expect(result.redirect).toBe("https://app.example.com/success");
+    });
+
     test("should return error redirect when linking is not allowed", async () => {
       const result = await processIDPCallback(linkParams);
 
@@ -658,6 +692,29 @@ describe("processIDPCallback", () => {
         organization: "org123",
       });
       expect(result.redirect).toBe("https://app.example.com/success");
+    });
+
+    test("should name an auto-link by the account's username when the provider sends no user name", async () => {
+      mockRetrieveIDPIntent.mockResolvedValue({
+        ...defaultIntent,
+        userId: undefined,
+        idpInformation: { ...defaultIntent.idpInformation, userName: "" },
+      });
+      mockListUsers.mockResolvedValue({
+        result: [{ userId: "found123", username: "erika@example.com", details: { resourceOwner: "org123" } }],
+      });
+
+      await processIDPCallback(defaultParams);
+
+      expect(mockAddIDPLink).toHaveBeenCalledWith({
+        serviceConfig: { baseUrl: "https://api.example.com" },
+        idp: {
+          id: "idp123",
+          userId: "user123",
+          userName: "erika@example.com",
+        },
+        userId: "found123",
+      });
     });
 
     test("should continue to next case when no user found by email", async () => {

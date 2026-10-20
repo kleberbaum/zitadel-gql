@@ -100,3 +100,13 @@ export function idpIntentNames(intent: RetrieveIdentityProviderIntentResponse): 
     familyName: profile?.familyName?.trim() ? profile.familyName : undefined,
   };
 }
+
+/**
+ * The user name a new link to an identity provider is created with. Zitadel
+ * requires one on every link, but a provider may send no preferred_username
+ * (qes-oidc for ID Austria sends none), and login V1 links such a user all
+ * the same. The link is then named by the username of the Zitadel account.
+ */
+export function idpLinkUserName(idpUserName: string | undefined, accountUserName: string | undefined): string {
+  return idpUserName || accountUserName || "";
+}

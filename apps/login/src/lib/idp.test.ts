@@ -1,7 +1,7 @@
 import { IDPType } from "@zitadel/proto/zitadel/idp/v2/idp_pb";
 import { IdentityProviderType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { describe, expect, it } from "vitest";
-import { idpIntentNames, idpTypeToIdentityProviderType, idpTypeToSlug } from "./idp";
+import { idpIntentNames, idpLinkUserName, idpTypeToIdentityProviderType, idpTypeToSlug } from "./idp";
 
 describe("idp type mapping utilities", () => {
   describe("idpTypeToSlug", () => {
@@ -407,5 +407,16 @@ describe("idpIntentNames", () => {
     } as any;
 
     expect(idpIntentNames(intent)).toEqual({ givenName: undefined, familyName: undefined });
+  });
+});
+
+describe("idpLinkUserName", () => {
+  it("keeps the user name the provider sent", () => {
+    expect(idpLinkUserName("erika.m", "erika@example.com")).toBe("erika.m");
+  });
+
+  it("names the link by the account's username when the provider sent none", () => {
+    expect(idpLinkUserName("", "erika@example.com")).toBe("erika@example.com");
+    expect(idpLinkUserName(undefined, "erika@example.com")).toBe("erika@example.com");
   });
 });

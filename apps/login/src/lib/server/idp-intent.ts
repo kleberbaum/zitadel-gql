@@ -33,6 +33,7 @@ import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { getFingerprintIdCookie } from "../fingerprint";
+import { idpLinkUserName } from "../idp";
 import { createNewSessionFromIdpIntent } from "./idp";
 
 const logger = createLogger("idp-intent");
@@ -389,7 +390,7 @@ async function handleExplicitLinking(ctx: IDPHandlerContext): Promise<IDPHandler
         idp: {
           id: intent.idpInformation!.idpId,
           userId: intent.idpInformation!.userId,
-          userName: intent.idpInformation!.userName,
+          userName: idpLinkUserName(intent.idpInformation!.userName, targetUser.user?.username),
         },
         userId: resolvedUserId,
       });
@@ -545,7 +546,7 @@ async function handleAutoLinking(ctx: IDPHandlerContext): Promise<IDPHandlerResu
           idp: {
             id: idpInformation!.idpId,
             userId: idpInformation!.userId,
-            userName: idpInformation!.userName,
+            userName: idpLinkUserName(idpInformation!.userName, foundUser.username),
           },
           userId: foundUser.userId,
         });

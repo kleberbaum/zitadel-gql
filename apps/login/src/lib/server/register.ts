@@ -21,7 +21,7 @@ import { getTranslations } from "next-intl/server";
 import { cookies, headers } from "next/headers";
 import { completeFlowOrGetUrl } from "../client";
 import { getOrSetFingerprintId } from "../fingerprint";
-import { idpIntentNames } from "../idp";
+import { idpIntentNames, idpLinkUserName } from "../idp";
 import { createLogger } from "../logger";
 import { getServiceConfig } from "../service-url";
 import { checkEmailVerification, checkMFAFactors } from "../verify-helper";
@@ -339,10 +339,8 @@ export async function registerUserAndLinkToIDP(
     idp: {
       id: idpInformation.idpId,
       userId: idpInformation.userId,
-      // Zitadel requires a user name on a link. A provider that sends no
-      // preferred_username (qes-oidc for ID Austria sends none) gets the
-      // address the person entered, which is the account's username as well.
-      userName: idpInformation.userName || command.email,
+      // addHumanUser makes the email address the account's username
+      userName: idpLinkUserName(idpInformation.userName, command.email),
     },
     userId: addUserResponse.userId,
   });
