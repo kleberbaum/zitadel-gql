@@ -21,7 +21,9 @@ export async function loginWithOIDCAndSession({
   sessionId,
   sessions,
   sessionCookies,
-}: LoginWithOIDCAndSession): Promise<{ error: string } | { redirect: string }> {
+}: LoginWithOIDCAndSession): Promise<
+  { error: string } | { redirect: string } | { samlData: { url: string; fields: Record<string, string> } }
+> {
   const selectedSession = sessions.find((s) => s.id === sessionId);
 
   if (selectedSession && selectedSession.id) {
@@ -43,6 +45,22 @@ export async function loginWithOIDCAndSession({
       if (res && "redirect" in res && res?.redirect) {
         return { redirect: res.redirect };
       }
+
+      if (res && "samlData" in res && res?.samlData) {
+        return { samlData: res.samlData };
+      }
+
+      if (res && "error" in res && res?.error) {
+        return { error: res.error };
+      }
+    }
+
+    // Zitadel links any active session to the request with its token and
+    // checks none of its factors (LinkSessionToAuthRequest). So a session that
+    // isSessionValid rejects never answers the request, also when
+    // sendLoginname above had nowhere to send the person.
+    if (!isValid) {
+      return { error: "Session not found or invalid" };
     }
 
     const cookie = sessionCookies.find((cookie) => cookie.id === selectedSession?.id);

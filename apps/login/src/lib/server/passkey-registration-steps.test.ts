@@ -247,5 +247,26 @@ describe("the steps after a registration with a passkey (P5)", () => {
       expect(result).toEqual({ redirect: "https://wiki.example.com/callback?code=c" });
       expect(createCallback).toHaveBeenCalledTimes(1);
     });
+
+    test("nor when sendLoginname has nowhere to send the person back to", async () => {
+      const sessionCookies = [{ id: "session-1", token: "token-1" }] as any;
+      vi.mocked(sendLoginname).mockResolvedValue({ error: "errors.userNotActive" } as any);
+      vi.mocked(createCallback).mockResolvedValue({ callbackUrl: "https://wiki.example.com/callback?code=c" } as any);
+      vi.mocked(getUserByID).mockResolvedValue(account(false) as any);
+
+      for (const session of [afterRegistration, afterPasskeySignIn]) {
+        const result = await loginWithOIDCAndSession({
+          serviceConfig,
+          authRequest: "request-1",
+          sessionId: "session-1",
+          sessions: [session as any],
+          sessionCookies,
+        });
+
+        expect(result).toEqual({ error: "errors.userNotActive" });
+      }
+
+      expect(createCallback).not.toHaveBeenCalled();
+    });
   });
 });

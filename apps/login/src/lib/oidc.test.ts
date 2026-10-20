@@ -236,4 +236,53 @@ describe("loginWithOIDCAndSession", () => {
       expect(result.redirect).toContain("/signedin");
     }
   });
+
+  describe("a session that isSessionValid rejects never answers the request", () => {
+    function login() {
+      return loginWithOIDCAndSession({
+        serviceConfig: { baseUrl: mockServiceUrl },
+        authRequest: mockAuthRequest,
+        sessionId: mockSessionId,
+        sessions: mockSessions,
+        sessionCookies: mockCookies,
+      });
+    }
+
+    beforeEach(() => {
+      vi.mocked(sessionModule.isSessionValid).mockResolvedValue(false);
+      vi.mocked(zitadelModule.createCallback).mockResolvedValue({
+        callbackUrl: "https://app.example.com/callback",
+      } as any);
+    });
+
+    it("not when sendLoginname answers with an error", async () => {
+      vi.mocked(loginnameModule.sendLoginname).mockResolvedValue({ error: "errors.userNotActive" });
+
+      expect(await login()).toEqual({ error: "errors.userNotActive" });
+      expect(zitadelModule.createCallback).not.toHaveBeenCalled();
+    });
+
+    it("not when sendLoginname has no next step", async () => {
+      vi.mocked(loginnameModule.sendLoginname).mockResolvedValue(undefined as any);
+
+      expect(await login()).toEqual({ error: "Session not found or invalid" });
+      expect(zitadelModule.createCallback).not.toHaveBeenCalled();
+    });
+
+    it("not when the session names no user", async () => {
+      mockSessions[0].factors = { password: mockSessions[0].factors.password };
+
+      expect(await login()).toEqual({ error: "Session not found or invalid" });
+      expect(loginnameModule.sendLoginname).not.toHaveBeenCalled();
+      expect(zitadelModule.createCallback).not.toHaveBeenCalled();
+    });
+
+    it("passes on the form post that starts the sign-in with an identity provider", async () => {
+      const samlData = { url: "https://idp.example.com/saml", fields: { SAMLRequest: "request" } };
+      vi.mocked(loginnameModule.sendLoginname).mockResolvedValue({ samlData });
+
+      expect(await login()).toEqual({ samlData });
+      expect(zitadelModule.createCallback).not.toHaveBeenCalled();
+    });
+  });
 });

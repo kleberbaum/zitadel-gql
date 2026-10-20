@@ -50,6 +50,18 @@ export async function loginWithSAMLAndSession({
       if (res && "samlData" in res && res?.samlData) {
         return { samlData: res.samlData };
       }
+
+      if (res && "error" in res && res?.error) {
+        return { error: res.error };
+      }
+    }
+
+    // Zitadel links any active session to the request with its token and
+    // checks none of its factors (LinkSessionToSAMLRequest). So a session that
+    // isSessionValid rejects never answers the request, also when
+    // sendLoginname above had nowhere to send the person.
+    if (!isValid) {
+      return { error: "Session not found or invalid" };
     }
 
     const cookie = sessionCookies.find((cookie) => cookie.id === selectedSession?.id);
