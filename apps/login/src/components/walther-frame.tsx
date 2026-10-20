@@ -70,10 +70,10 @@ export async function WaltherFrame({ children, languages }: { children: ReactNod
 /**
  * The frame of the Walther look while a page loads, as the fallback of the
  * root layout. The page waits for its messages, so this draws the frame
- * without them: the logo, not yet linked, the theme switch, and the footer
- * with the room of its links but none of their text. Header and footer stand
- * where the frame draws them, so only the card area changes when the page
- * arrives.
+ * without them: the logo, not yet linked, the room of the language switch,
+ * the theme switch, and the footer with the room of its links but none of
+ * their text. Header and footer take the room the frame gives them, so only
+ * the card area changes when the page arrives.
  */
 export function WaltherFrameFallback({ children }: { children: ReactNode }) {
   return (
@@ -83,7 +83,13 @@ export function WaltherFrameFallback({ children }: { children: ReactNode }) {
           <HeaderLogo alt={UNIVERSITY} />
         </span>
       }
-      controls={<ThemeSwitch />}
+      controls={
+        <>
+          {/* The size of the language switch (w-32 in language-switcher.tsx). */}
+          <div aria-hidden="true" className="h-9 w-32" />
+          <ThemeSwitch />
+        </>
+      }
       legal={
         <div aria-hidden="true" className="invisible flex w-40 flex-col gap-3">
           {["legal", "imprint", "privacy", "terms"].map((line) => (
