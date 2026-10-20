@@ -147,6 +147,7 @@
       "userInitialStateNotSupported": "Anfangszustand des Benutzers wird nicht unterstützt",
       "codeOrVerificationRequired": "Sie müssen einen Code angeben oder eine gültige Benutzerverifizierung durchführen",
       "verificationRequired": "Die Benutzerverifizierung muss durchgeführt werden",
+      "passkeyRequired": "Für dieses Konto ist ein Passkey vorgesehen, kein Passwort. Bitte richten Sie einen Passkey ein.",
       "couldNotLoadSession": "Sitzung konnte nicht geladen werden",
       "couldNotLoadAuthMethods": "Authentifizierungsmethoden konnten nicht geladen werden",
       "failedPrecondition": "Vorbedingung fehlgeschlagen",

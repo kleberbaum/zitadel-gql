@@ -8,6 +8,7 @@ import { Translated } from "@/components/translated";
 import { UserAvatar } from "@/components/user-avatar";
 import { getSessionCookieById } from "@/lib/cookies";
 import { createLogger } from "@/lib/logger";
+import { allowsPasskeyRegistration } from "@/lib/passkey-registration";
 import { getServiceConfig } from "@/lib/service-url";
 import { isSessionValid, loadMostRecentSession } from "@/lib/session";
 import { checkUserVerification } from "@/lib/verify-helper";
@@ -247,6 +248,10 @@ export default async function Page(props: { searchParams: Promise<SearchParams> 
             authMethods={primaryMethods} // its own check would warn an account with a second factor alone
             loginSettings={loginSettings}
             params={params}
+            // While people register with a passkey, an account without a way
+            // to sign in gets a passkey here, never a password, so a stopped
+            // registration cannot end with one (changePassword refuses it too).
+            passkeyOnly={allowsPasskeyRegistration(loginSettings)}
           ></ChooseAuthenticatorToSetup>
         )}
 

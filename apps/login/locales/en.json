@@ -147,6 +147,7 @@
       "userInitialStateNotSupported": "User Initial State is not supported",
       "codeOrVerificationRequired": "You have to provide a code or have a valid User Verification Check",
       "verificationRequired": "User Verification Check has to be done",
+      "passkeyRequired": "This account uses a passkey, not a password. Please set up a passkey.",
       "couldNotLoadSession": "Could not load session",
       "couldNotLoadAuthMethods": "Could not load auth methods",
       "failedPrecondition": "Failed precondition",

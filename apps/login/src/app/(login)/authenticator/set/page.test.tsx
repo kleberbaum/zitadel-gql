@@ -12,6 +12,7 @@ import {
   listIDPLinks,
 } from "@/lib/zitadel";
 import { cleanup, render } from "@testing-library/react";
+import { PasskeysType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { AuthenticationMethodType } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 import { redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -298,5 +299,61 @@ describe("authenticator set page for an account that has an authenticator", () =
     vi.mocked(loadMostRecentSession).mockResolvedValue(undefined as any);
 
     expect(await tabTitle()).toBe("title");
+  });
+});
+
+describe("authenticator set page while people register with a passkey (P5)", () => {
+  const newAccountSession = {
+    id: "session-2",
+    factors: { user: { id: "user-2", loginName: "person@example.com", organizationId: "org-walther" } },
+  };
+
+  beforeEach(() => {
+    vi.stubEnv("PASSKEY_REGISTRATION", "true");
+    vi.stubEnv("EMAIL_VERIFICATION", "true");
+    vi.mocked(loadMostRecentSession).mockResolvedValue(newAccountSession as any);
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
+    vi.mocked(getUserByID).mockResolvedValue({ user: { type: { case: "human", value: {} } } } as any);
+    vi.mocked(getBrandingSettings).mockResolvedValue(undefined as any);
+    vi.mocked(getLoginSettings).mockResolvedValue({
+      allowRegister: false,
+      allowExternalIdp: true,
+      allowLocalAuthentication: true,
+      passkeysType: PasskeysType.ALLOWED,
+    } as any);
+    vi.mocked(getActiveIdentityProviders).mockResolvedValue({
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+    } as any);
+    // the code of a registration that stopped before its passkey, or the
+    // cookie the registration itself leaves
+    vi.mocked(checkUserVerification).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  test("offers an account without a way to sign in a passkey and never a password", async () => {
+    const { getByTestId } = await renderPage();
+
+    expect(getByTestId("choose-authenticator")).toBeInTheDocument();
+    expect(vi.mocked(ChooseAuthenticatorToSetup).mock.calls[0][0]).toMatchObject({ authMethods: [], passkeyOnly: true });
+  });
+
+  test("still offers to link ID Austria instead, which makes it a registration with ID Austria", async () => {
+    const { getByTestId } = await renderPage();
+
+    expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
+    expect(vi.mocked(SignInWithIdp).mock.calls[0][0]).toMatchObject({ sessionId: "session-2" });
+  });
+
+  test("keeps upstream's choice of a password or a passkey without PASSKEY_REGISTRATION", async () => {
+    vi.stubEnv("PASSKEY_REGISTRATION", "");
+
+    await renderPage();
+
+    expect(vi.mocked(ChooseAuthenticatorToSetup).mock.calls[0][0]).toMatchObject({ passkeyOnly: false });
   });
 });

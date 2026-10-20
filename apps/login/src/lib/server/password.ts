@@ -25,6 +25,7 @@ import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { completeFlowOrGetUrl } from "../client";
 import { getSessionCookieById, getSessionCookieByLoginName } from "../cookies";
+import { allowsPasskeyRegistration } from "../passkey-registration";
 import { getServiceConfig } from "../service-url";
 import {
   checkEmailVerification,
@@ -476,6 +477,15 @@ export async function changePassword(command: { code?: string; userId: string; p
       return {
         error: t("errors.codeOrVerificationRequired"),
       };
+    }
+
+    // While people register with a passkey (PASSKEY_REGISTRATION), an account
+    // without a way to sign in gets a passkey, never a password. Otherwise a
+    // registration with a passkey could end with a password instead, through
+    // the verification cookie it leaves.
+    const userLoginSettings = await getLoginSettings({ serviceConfig, organization: user.details?.resourceOwner });
+    if (allowsPasskeyRegistration(userLoginSettings)) {
+      return { error: t("errors.passkeyRequired") };
     }
 
     // check if a verification was done earlier

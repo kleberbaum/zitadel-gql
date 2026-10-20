@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { PasskeysType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { AuthenticationMethodType } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { ClassifiedConnectError } from "../grpc/interceptors/error-classification";
 import { changePassword, checkSessionAndSetPassword, resetPassword, sendPassword } from "./password";
 
@@ -553,5 +554,73 @@ describe("changePassword", () => {
 
     expect(result).toEqual({ error: "errors.couldNotSendResetLink" });
     expect(mockSetUserPassword).not.toHaveBeenCalled();
+  });
+
+  describe("for an account without a way to sign in while people register with a passkey (P5)", () => {
+    let mockListAuthenticationMethodTypes: any;
+    let mockCheckUserVerification: any;
+
+    const newAccount = {
+      user: { userId: "user-2", state: 1, details: { resourceOwner: "org-walther" } },
+    };
+
+    beforeEach(async () => {
+      const { listAuthenticationMethodTypes } = await import("../zitadel");
+      const { checkUserVerification } = await import("../verify-helper");
+      mockListAuthenticationMethodTypes = vi.mocked(listAuthenticationMethodTypes);
+      mockCheckUserVerification = vi.mocked(checkUserVerification);
+
+      vi.stubEnv("PASSKEY_REGISTRATION", "true");
+      vi.stubEnv("EMAIL_VERIFICATION", "true");
+      mockGetUserByID.mockResolvedValue(newAccount);
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [] });
+      mockGetLoginSettings.mockResolvedValue({
+        allowRegister: false,
+        allowLocalAuthentication: true,
+        passkeysType: PasskeysType.ALLOWED,
+      });
+      mockCheckUserVerification.mockResolvedValue(true);
+      mockSetUserPassword.mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    test("refuses a password, even with the verification cookie a registration leaves", async () => {
+      const result = await changePassword({ userId: "user-2", password: "Secret-Passw0rd", organization: "org-other" });
+
+      expect(result).toEqual({ error: "errors.passkeyRequired" });
+      expect(mockSetUserPassword).not.toHaveBeenCalled();
+      expect(mockGetLoginSettings).toHaveBeenCalledWith({ serviceConfig: expect.anything(), organization: "org-walther" });
+    });
+
+    test("sets the password as upstream does without PASSKEY_REGISTRATION", async () => {
+      vi.stubEnv("PASSKEY_REGISTRATION", "");
+
+      await changePassword({ userId: "user-2", password: "Secret-Passw0rd" });
+
+      expect(mockSetUserPassword).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-2", password: "Secret-Passw0rd", code: undefined }),
+      );
+    });
+
+    test("sets the password as upstream does while self-registration is open", async () => {
+      mockGetLoginSettings.mockResolvedValue({
+        allowRegister: true,
+        allowLocalAuthentication: true,
+        passkeysType: PasskeysType.ALLOWED,
+      });
+
+      await changePassword({ userId: "user-2", password: "Secret-Passw0rd" });
+
+      expect(mockSetUserPassword).toHaveBeenCalledTimes(1);
+    });
+
+    test("leaves a reset with a code from the mailbox to upstream", async () => {
+      await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
+
+      expect(mockSetUserPassword).toHaveBeenCalledWith(expect.objectContaining({ code: "reset-code" }));
+    });
   });
 });
