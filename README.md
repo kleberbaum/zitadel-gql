@@ -75,12 +75,13 @@ README.zitadel.md the upstream's README, kept for the lineage
 
 ## Login v2 against upstream
 
-`apps/login` differs from upstream in nine places. Together they let an
+`apps/login` differs from upstream in ten places. Together they let an
 identity provider that allows creation register people while the password
 self-registration of the organization stays closed, as the v1 login does,
 they make the email code part of such a registration, they let an
-existing account link such a provider, and they give the login the look of
-the site it signs people in to.
+existing account link such a provider, they give the login the look of
+the site it signs people in to, and they let a deployment open the
+registration with a passkey beside the providers.
 
 1. `registerUserAndLinkToIDP` registers when the organization allows
    external identity providers and either self-registration is open or the
@@ -143,6 +144,27 @@ the site it signs people in to.
 9. The build copies `public/` beside the standalone server as well, which
    serves public files from there. Upstream copies it one level up only,
    so the favicon and the logos answered 404 in the image.
+10. `PASSKEY_REGISTRATION=true` lets a person register with a passkey in
+    an organization whose login policy allows passkeys while its
+    self-registration stays closed. The register page then shows, below
+    the buttons of the providers that allow creation, a section "Mit
+    Passkey registrieren" ("Register with a passkey") with one line on
+    what a passkey is. Its form asks for the given name, the family name
+    and the email address, with the legal checkboxes, and offers no
+    choice of the method. `registerUser` accepts such a registration
+    without a password and refuses a password unless self-registration is
+    open, whatever the client sends, and `/register/password` stays
+    closed. The person then sets up the passkey on `/passkey/set`, signs
+    in with it, which sends the email code, and enters the code. Upstream
+    counts the session as signed in only after both, since it checks the
+    address with `EMAIL_VERIFICATION=true`, so the registration needs that
+    variable as well and stays closed without it. While the registration
+    applies, `/authenticator/set` offers an account without a way to sign
+    in only a passkey, next to linking a provider, and `changePassword`
+    refuses to set its first password without a code. A person who
+    stopped before the passkey and comes back thus finishes with one, not
+    with a password. The variable is read at request time, like
+    `LOGIN_THEME`. Unset, the login behaves as before.
 
 The workspace pins `@bufbuild/protobuf` to one version in
 `pnpm-workspace.yaml`. Two copies make the Connect transport of the login
