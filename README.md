@@ -75,13 +75,14 @@ README.zitadel.md the upstream's README, kept for the lineage
 
 ## Login v2 against upstream
 
-`apps/login` differs from upstream in ten places. Together they let an
+`apps/login` differs from upstream in eleven places. Together they let an
 identity provider that allows creation register people while the password
 self-registration of the organization stays closed, as the v1 login does,
 they make the email code part of such a registration, they let an
 existing account link such a provider, they give the login the look of
-the site it signs people in to, and they let a deployment open the
-registration with a passkey beside the providers.
+the site it signs people in to, they let a deployment open the
+registration with a passkey beside the providers, and they answer a
+sign-in request only with a session that counts as signed in.
 
 1. `registerUserAndLinkToIDP` registers when the organization allows
    external identity providers and either self-registration is open or the
@@ -154,17 +155,38 @@ registration with a passkey beside the providers.
     choice of the method. `registerUser` accepts such a registration
     without a password and refuses a password unless self-registration is
     open, whatever the client sends, and `/register/password` stays
-    closed. The person then sets up the passkey on `/passkey/set`, signs
-    in with it, which sends the email code, and enters the code. Upstream
-    counts the session as signed in only after both, since it checks the
-    address with `EMAIL_VERIFICATION=true`, so the registration needs that
+    closed. It also refuses an address that an account of any
+    organization has as a login name or as its email address, with the
+    answer of a taken username. Zitadel keeps no email address unique,
+    and the address becomes the username before anyone confirmed it, so
+    the owner's sign-in with it would otherwise find the new account. The
+    person then sets up the passkey on `/passkey/set`, signs in with it,
+    which sends the email code, and enters the code. Upstream counts the
+    session as signed in only after both, since it checks the address
+    with `EMAIL_VERIFICATION=true`, so the registration needs that
     variable as well and stays closed without it. While the registration
     applies, `/authenticator/set` offers an account without a way to sign
-    in only a passkey, next to linking a provider, and `changePassword`
-    refuses to set its first password without a code. A person who
-    stopped before the passkey and comes back thus finishes with one, not
-    with a password. The variable is read at request time, like
-    `LOGIN_THEME`. Unset, the login behaves as before.
+    in only a passkey, next to linking a provider. An account that signs
+    in with neither a password nor a provider, as it has no method yet or
+    a passkey only, gets no password at all. `changePassword` refuses one
+    with or without a code, and `resetPassword` sends no code, which would
+    go to the address the person registered. A person who stopped before
+    the passkey and comes back thus finishes with one, not with a
+    password. The variable is read at request time, like `LOGIN_THEME`.
+    Unset, the login behaves as before.
+11. A sign-in request is answered only with a session that
+    `isSessionValid` accepts. Zitadel links an active session to an OIDC
+    or SAML request, and approves a device authorization with it, on its
+    token alone, without looking at its factors. Upstream's
+    `loginWithOIDCAndSession` and `loginWithSAMLAndSession` still used a
+    rejected session whenever `sendLoginname` gave no redirect, and
+    `/signedin` approved a device with any session in the cookie. So a
+    session that only names the user, as typing a login name or a
+    registration with a passkey leaves one, could end a sign-in. Now the
+    two send the person to sign in again where `sendLoginname` points,
+    or return its error, and `completeDeviceAuthorization` approves
+    nothing with such a session, upon which `/signedin` sends the person
+    to `/loginname`.
 
 The workspace pins `@bufbuild/protobuf` to one version in
 `pnpm-workspace.yaml`. Two copies make the Connect transport of the login
