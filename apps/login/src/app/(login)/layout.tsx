@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/skeleton";
 import { ThemeProvider } from "@/components/theme-provider";
 import ThemeSwitch from "@/components/theme-switch";
 import { LANGS, getLanguage } from "@/lib/i18n";
+import { getLoginTheme } from "@/lib/login-theme";
 import { getServiceConfig } from "@/lib/service-url";
 import { getAllowedLanguages } from "@/lib/zitadel";
 import * as Tooltip from "@radix-ui/react-tooltip";
@@ -42,8 +43,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     console.error("Failed to load supported languages", e);
   }
 
+  const loginTheme = getLoginTheme();
+
   return (
-    <html className={`${lato.className}`} suppressHydrationWarning>
+    <html className={`${lato.className}`} data-login-theme={loginTheme} suppressHydrationWarning>
       <head />
       <body>
         <ThemeProvider>
