@@ -137,7 +137,7 @@ describe("the Walther look", () => {
     }
   });
 
-  test("loads no webfont, as the wiki loads none", () => {
+  test("brings no webfont of its own, as the wiki loads none", () => {
     expect(css).not.toContain("@font-face");
     expect(css).not.toMatch(/url\(/);
   });

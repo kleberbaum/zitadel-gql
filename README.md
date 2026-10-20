@@ -95,7 +95,8 @@ the site it signs people in to.
    and the form. Names the provider sent are shown read only, and only
    the email address is entered.
 4. The register page shows the local form only while self-registration is
-   open, otherwise just the buttons of the providers that allow creation.
+   open, otherwise just the buttons of the providers that allow creation,
+   without the line "oder melden Sie sich an mit" above them.
 5. A new link to a provider that sends no `preferred_username` (qes-oidc
    for ID Austria sends none) is named by the username of the account,
    since user/v2 `AddIDPLink` refuses a link without a user name. This
@@ -103,27 +104,35 @@ the site it signs people in to.
 6. `/authenticator/set`, the only place where an existing account links a
    provider, accepts a valid session besides the recent verification it
    asked for, so a user who just signed in with a password can add one.
-7. `/authenticator/set` no longer warns an account that has an
-   authenticator that one is set up already. It says in a neutral sentence
-   that the account can sign in, offers each provider that allows linking
+7. `/authenticator/set` no longer warns an account that can sign in
+   already, with a password, a passkey or an identity provider, that an
+   authenticator is set up. The page and its tab are titled
+   "Anmeldemethoden" ("Sign-in methods"), and a neutral sentence says that
+   the account can sign in. It offers each provider that allows linking
    under a heading named after it ("Konto mit ID Austria verknüpfen", "Link
    your account with ID Austria"), and names a provider the account is
    linked with already (user/v2 `ListIDPLinks`) instead of offering it
-   again. An account without an authenticator gets upstream's page.
+   again. Any other account, one with a second factor alone as well, gets
+   upstream's page with the choice of a password or a passkey.
 8. `LOGIN_THEME` chooses the look per deployment. The root layout reads it
    at request time, unlike the `NEXT_PUBLIC_THEME_*` settings Next.js
    inlines at build time, so one image serves every look. Unset, the login
    looks as upstream's does. `LOGIN_THEME=walther` dresses it like the
    Walther wiki of the University of Vienna (walther.exp.univie.ac.at): the
-   wiki's system font stack (the wiki loads no webfont, so neither does the
-   login), its brand blue and blue-tinted greys, a white page and card with
-   the wiki's panel shadow in light mode, its gray.800 page in dark mode,
-   12px corners, semibold 40px buttons, outlined secondary and provider
-   buttons, inputs with a brand ring, the wiki's arrow backdrop, the
-   University of Vienna logo in the header and the wiki's footer with
-   Impressum, Datenschutz and Nutzungsbedingungen. The look lives in
-   `src/styles/walther.scss`, which applies only below
-   `html[data-login-theme="walther"]`, and in
+   wiki's system font stack, its brand blue and blue-tinted greys, a white
+   page and card with the wiki's panel shadow in light mode, its gray.800
+   page in dark mode, 12px corners, semibold 40px buttons, outlined
+   secondary and provider buttons, inputs with a brand ring, the wiki's
+   arrow backdrop, the University of Vienna logo in the header and the
+   wiki's footer with Impressum, Datenschutz and Nutzungsbedingungen. While
+   a page loads, the frame already stands around the skeleton. Where the
+   wiki's colours miss the WCAG contrast, the login takes another of them:
+   errors in red.600, the hover of the solid buttons in theme.700, field
+   borders in gray.500. The wiki loads no webfont, and the Walther look
+   uses none. The root layout still preloads upstream's self-hosted Lato on
+   every page, unused in this look, since next/font cannot switch the
+   preload per request. The look lives in `src/styles/walther.scss`, which
+   applies only below `html[data-login-theme="walther"]`, and in
    `src/components/walther-frame.tsx`. It sets the `--theme-*` colour
    variables with `!important`, so it wins over the colours of the
    organization's branding settings, and it styles the hook classes

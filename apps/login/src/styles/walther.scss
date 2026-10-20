@@ -74,7 +74,8 @@ $muted-light: map.get($gray, 600);
 $muted-dark: map.get($gray, 400);
 
 // The wiki's font: Chakra v2's system stack for body and headings. The wiki
-// loads no webfont, so neither does this look.
+// loads no webfont, and this look uses none. Upstream's Lato, which the root
+// layout preloads on every page, goes unused in it.
 $font:
   -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
   "Segoe UI Symbol";
