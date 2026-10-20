@@ -21,6 +21,7 @@ import {
   listIDPLinks,
 } from "@/lib/zitadel";
 import { Session } from "@zitadel/proto/zitadel/session/v2/session_pb";
+import { AuthenticationMethodType } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 // import { getLocale } from "next-intl/server";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -31,6 +32,15 @@ import { cache } from "react";
 const logger = createLogger("authenticator-set");
 
 type SearchParams = Record<string | number | symbol, string | undefined>;
+
+// The methods an account signs in with on their own, as verify.ts counts them
+// when it sends an account here to set one up. A second factor alone (TOTP,
+// U2F, a one-time code by SMS or email) signs nobody in.
+const PRIMARY_METHODS = [AuthenticationMethodType.PASSWORD, AuthenticationMethodType.PASSKEY, AuthenticationMethodType.IDP];
+
+function primaryMethodsOf(authMethods: AuthenticationMethodType[]) {
+  return authMethods.filter((method) => PRIMARY_METHODS.includes(method));
+}
 
 /**
  * The session the page is for, with the authentication methods of its user.
@@ -97,7 +107,7 @@ export async function generateMetadata(props: { searchParams: Promise<SearchPara
   // The tab is named as the heading is. Should the lookup fail, the page
   // reports it, and the tab keeps upstream's title.
   const sessionWithData = await loadSessionWithData(sessionId, loginName, organization).catch(() => undefined);
-  const hasAuthenticator = !!sessionWithData && sessionWithData.authMethods.length !== 0;
+  const hasAuthenticator = !!sessionWithData && primaryMethodsOf(sessionWithData.authMethods).length > 0;
 
   return { title: t(hasAuthenticator ? "linkTitle" : "title") };
 }
@@ -161,10 +171,13 @@ export default async function Page(props: { searchParams: Promise<SearchParams> 
     linking_allowed: true,
   });
 
-  // An account with an authenticator can sign in already. For it the page
-  // only links identity providers, and it names the providers the account is
-  // linked with instead of offering them again.
-  const hasAuthenticator = sessionWithData.authMethods.length !== 0;
+  // An account with a password, a passkey or an identity provider can sign in
+  // already. For it the page only links identity providers, and it names the
+  // providers the account is linked with instead of offering them again. An
+  // account with a second factor alone chooses a password or a passkey, as
+  // one without any authenticator does.
+  const primaryMethods = primaryMethodsOf(sessionWithData.authMethods);
+  const hasAuthenticator = primaryMethods.length > 0;
   const linkableIdps = loginSettings?.allowExternalIdp ? identityProviders : [];
 
   let linkedIdpIds: string[] = [];
@@ -231,7 +244,7 @@ export default async function Page(props: { searchParams: Promise<SearchParams> 
 
         {loginSettings && !hasAuthenticator && (
           <ChooseAuthenticatorToSetup
-            authMethods={sessionWithData.authMethods}
+            authMethods={primaryMethods} // its own check would warn an account with a second factor alone
             loginSettings={loginSettings}
             params={params}
           ></ChooseAuthenticatorToSetup>

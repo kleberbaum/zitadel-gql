@@ -1,3 +1,4 @@
+import { ChooseAuthenticatorToSetup } from "@/components/choose-authenticator-to-setup";
 import { LinkIdentityProviders } from "@/components/link-identity-providers";
 import { SignInWithIdp } from "@/components/sign-in-with-idp";
 import { isSessionValid, loadMostRecentSession } from "@/lib/session";
@@ -82,7 +83,7 @@ vi.mock("@/components/user-avatar", () => ({
 }));
 
 vi.mock("@/components/choose-authenticator-to-setup", () => ({
-  ChooseAuthenticatorToSetup: () => <div data-testid="choose-authenticator" />,
+  ChooseAuthenticatorToSetup: vi.fn(() => <div data-testid="choose-authenticator" />),
 }));
 
 vi.mock("@/components/sign-in-with-idp", () => ({
@@ -264,6 +265,33 @@ describe("authenticator set page for an account that has an authenticator", () =
     expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
     expect(queryByTestId("link-identity-providers")).not.toBeInTheDocument();
     expect(listIDPLinks).not.toHaveBeenCalled();
+  });
+
+  test("lets an account with a second factor alone choose a password or a passkey", async () => {
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({
+      authMethodTypes: [AuthenticationMethodType.TOTP],
+    } as any);
+
+    const { getByRole, getByTestId, queryByTestId, queryByText } = await renderPage();
+
+    expect(getByTestId("choose-authenticator")).toBeInTheDocument();
+    expect(vi.mocked(ChooseAuthenticatorToSetup).mock.calls[0][0]).toMatchObject({ authMethods: [] });
+    expect(queryByTestId("link-identity-providers")).not.toBeInTheDocument();
+    expect(getByRole("heading", { level: 1 })).toHaveTextContent(/^title$/);
+    expect(queryByText("accountReady")).not.toBeInTheDocument();
+    expect(await tabTitle()).toBe("title");
+  });
+
+  test("counts a linked identity provider as a way to sign in", async () => {
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({
+      authMethodTypes: [AuthenticationMethodType.IDP, AuthenticationMethodType.TOTP],
+    } as any);
+
+    const { getByTestId, queryByTestId } = await renderPage();
+
+    expect(getByTestId("link-identity-providers")).toBeInTheDocument();
+    expect(queryByTestId("choose-authenticator")).not.toBeInTheDocument();
+    expect(await tabTitle()).toBe("linkTitle");
   });
 
   test("keeps upstream's tab title when the session cannot be loaded", async () => {
