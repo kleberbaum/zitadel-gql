@@ -182,6 +182,32 @@ cannot see but does not return them, so `totalCount` can exceed the edges.
 
 The list caches are per request and unchanged.
 
+## Links to identity providers
+
+`idpLinks` on a user lists the user's links to external identity providers:
+one `ListIDPLinks` call with the caller's token, made only when a query
+selects the field, and once per user and request. Each `IDPLinkNode` carries
+`idpId`, `userId` and `userName`, where the last two are the user's id and
+name at that provider, not in Zitadel. For ID Austria `userId` is the
+qes-oidc subject, the value a qualified signature is bound to. Both user
+types carry the field, so it is selectable on `UserNode` without a fragment.
+
+```graphql
+query ($id: String!) {
+  user(args: {id: $id}) {
+    idpLinks {
+      idpId
+      userId
+      userName
+    }
+  }
+}
+```
+
+A failed read fails the field. It is not answered as an empty list the way
+a failed read of the grants is, because a consumer deciding on the presence
+of a link has to tell "no link" from "could not read".
+
 ## Type resolution and `__typename`
 
 A user is `UserNode`, implemented by `HumanUser` and `MachineUser`, and the

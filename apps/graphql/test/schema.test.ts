@@ -117,4 +117,18 @@ describe('pylon build artifacts', () => {
     expect(schema).not.toContain('IUserNode')
     expect(schema).not.toMatch(/type UserNode implements/)
   })
+
+  test('users carry idpLinks, the external identities as IDPLinkNode', () => {
+    const schema = readFileSync(join(pylonDir, 'schema.graphql'), 'utf8')
+    const body = (pattern: RegExp) => schema.match(pattern)?.[1] ?? ''
+
+    for (const type of ['HumanUser', 'MachineUser']) {
+      expect(body(new RegExp(`type ${type} implements [^{]*\\{([^}]*)\\}`))).toContain('idpLinks: [IDPLinkNode!]!')
+    }
+
+    const link = body(/type IDPLinkNode implements [^{]*\{([^}]*)\}/)
+    for (const field of ['id: String!', 'idpId: String!', 'userId: String!', 'userName: String!']) {
+      expect(link).toContain(field)
+    }
+  })
 })

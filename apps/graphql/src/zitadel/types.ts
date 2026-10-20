@@ -7,6 +7,16 @@ export interface ZitadelProjectRole {
 }
 
 /**
+ * A link of a user to an external identity provider, as user/v2 IDPLink
+ * carries it: the provider, and the user's id and name at that provider.
+ */
+export interface ZitadelIDPLink {
+  idpId: string
+  userId: string
+  userName: string
+}
+
+/**
  * A deferred read of one user's grants. A list hands one to every node of a
  * page so the page's grants cost one Zitadel call, made only when a query
  * asks for roles or grants, and shared by all nodes of that page.

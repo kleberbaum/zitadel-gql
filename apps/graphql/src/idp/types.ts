@@ -40,14 +40,3 @@ export interface IDPNode extends Node {
   creationDate: string
   changeDate: string
 }
-
-/**
- * IDP Link node interface (link between user and external IDP)
- */
-export interface IDPLinkNode extends Node {
-  userId: string
-  idpId: string
-  idpName: string
-  providedUserId: string
-  providedUserName: string
-}

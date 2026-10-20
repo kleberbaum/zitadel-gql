@@ -10,6 +10,7 @@ import {getZitadelClients, createCallOptions, getDefaultOrgId} from './client'
 import type {
   ZitadelAuthorizationCreateInput,
   ZitadelAuthorizationUpdateInput,
+  ZitadelIDPLink,
   ZitadelProjectRole,
   ZitadelUserCreateInput,
   ZitadelUserGrant,
@@ -23,6 +24,7 @@ import {
   DeactivateUserRequestSchema,
   DeleteUserRequestSchema,
   GetUserByIDRequestSchema,
+  ListIDPLinksRequestSchema,
   ListUserMetadataRequestSchema,
   ListUsersRequestSchema,
   LockUserRequestSchema,
@@ -530,6 +532,37 @@ export async function getUserMetadata(userId: string, key: string, organizationI
   const match = (response.metadata ?? []).find(m => m.key === key)
   if (!match?.value?.length) return null
   return new TextDecoder().decode(match.value)
+}
+
+// --------------------------------------------------
+// Links to external identity providers
+// --------------------------------------------------
+
+/**
+ * The user's links to external identity providers, one user/v2 ListIDPLinks
+ * call, cached per request like the other single-user reads. Each link names
+ * the provider and the user's id and name there, for ID Austria the id is
+ * the qes-oidc subject. Unlike the grants, a failed read is not turned into
+ * an empty list: a caller deciding whether somebody holds a link has to be
+ * able to tell "no link" from "could not read".
+ */
+export async function listIDPLinks(userId: string, organizationId?: string): Promise<ZitadelIDPLink[]> {
+  const maps = requestScopedMaps<ZitadelIDPLink[], ZitadelIDPLink[]>('zitadelIDPLinkCache')
+  const cacheKey = organizationId ? `${organizationId}:${userId}` : userId
+
+  return dedupe(maps, cacheKey, async () => {
+    const clients = getZitadelClients()
+    const request = create(ListIDPLinksRequestSchema, {
+      userId,
+      query: create(ListQuerySchema, {limit: 100, asc: true})
+    })
+    const response = await clients.users.listIDPLinks(request, createCallOptions(organizationId))
+    return (response.result ?? []).map(link => ({
+      idpId: link.idpId,
+      userId: link.userId,
+      userName: link.userName
+    }))
+  })
 }
 
 // --------------------------------------------------

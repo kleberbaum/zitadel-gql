@@ -1,11 +1,12 @@
 // src/user/HumanUser.ts
 import type {ID} from '../types'
 import type {GrantsLoader, ZitadelProjectRole, ZitadelUserGrant} from '../zitadel/types'
-import {getUserGrants, flattenRolesFromGrants} from '../zitadel/users'
+import {getUserGrants, flattenRolesFromGrants, listIDPLinks} from '../zitadel/users'
 import {encodeCursor, paginateWindow} from '../relay/relay'
 import {PageInfo} from '../relay/PageInfo'
 import {Grant, GrantConnection, GrantEdge} from './Grant'
 import {Role, RoleConnection, RoleEdge} from './Role'
+import {IDPLinkNode} from './IDPLink'
 import type {UserFields, UserState, UserDataNode, UserProfileNode, Gender} from './types'
 import type {RelayArgs} from '../relay/types'
 import type {Organization} from '../organization/Organization'
@@ -257,6 +258,17 @@ export class HumanUser implements UserFields {
     })
 
     return new RoleConnection({edges, pageInfo, totalCount: items.length})
+  }
+
+  /**
+   * The user's links to external identity providers (user/v2 ListIDPLinks),
+   * read with the caller's token when a query selects this field and not at
+   * all otherwise. A failed read fails the field instead of answering an
+   * empty list, see listIDPLinks.
+   */
+  idpLinks = async (): Promise<IDPLinkNode[]> => {
+    const links = await listIDPLinks(String(this.id), this.resourceOwner)
+    return links.map(link => new IDPLinkNode(link))
   }
 
   /**
