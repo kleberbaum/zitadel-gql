@@ -13,6 +13,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("signedin");
@@ -53,7 +54,7 @@ export default async function Page(props: { searchParams: Promise<any> }) {
         });
 
     if (cookie) {
-      await completeDeviceAuthorization(requestId.replace("device_", ""), {
+      const approval = await completeDeviceAuthorization(requestId.replace("device_", ""), {
         sessionId: cookie.id,
         sessionToken: cookie.token,
       }).catch((err) => {
@@ -72,6 +73,22 @@ export default async function Page(props: { searchParams: Promise<any> }) {
           </DynamicTheme>
         );
       });
+
+      // A session that does not count as signed in approves nothing, see
+      // completeDeviceAuthorization. The person signs in first, as after the
+      // consent, and comes back here with a session that does.
+      if (approval && "error" in approval) {
+        const params = new URLSearchParams({ requestId });
+        const sessionLoginName = loginName ?? cookie.loginName;
+        const sessionOrganization = organization ?? cookie.organization;
+        if (sessionLoginName) {
+          params.append("loginName", sessionLoginName);
+        }
+        if (sessionOrganization) {
+          params.append("organization", sessionOrganization);
+        }
+        redirect("/loginname?" + params);
+      }
     }
   }
 
