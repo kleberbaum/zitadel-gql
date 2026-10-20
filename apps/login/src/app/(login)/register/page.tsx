@@ -1,8 +1,10 @@
 import { Alert } from "@/components/alert";
 import { DynamicTheme } from "@/components/dynamic-theme";
 import { RegisterForm } from "@/components/register-form";
+import { RegisterWithPasskey } from "@/components/register-with-passkey";
 import { SignInWithIdp } from "@/components/sign-in-with-idp";
 import { Translated } from "@/components/translated";
+import { allowsPasskeyRegistration } from "@/lib/passkey-registration";
 import { getServiceConfig } from "@/lib/service-url";
 import {
   getActiveIdentityProviders,
@@ -66,7 +68,15 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     );
   }
 
-  if (!loginSettings?.allowRegister && (!loginSettings.allowExternalIdp || identityProviders.length === 0)) {
+  // With self-registration closed, PASSKEY_REGISTRATION lets a person register
+  // with a passkey as well, below the buttons of the providers.
+  const passkeyRegistration = allowsPasskeyRegistration(loginSettings);
+
+  if (
+    !loginSettings?.allowRegister &&
+    !passkeyRegistration &&
+    (!loginSettings.allowExternalIdp || identityProviders.length === 0)
+  ) {
     return (
       <DynamicTheme branding={branding}>
         <div className="flex flex-col space-y-4">
@@ -102,6 +112,23 @@ export default async function Page(props: { searchParams: Promise<Record<string 
       ></RegisterForm>
     );
 
+  const showProviders = loginSettings.allowExternalIdp && !!identityProviders.length;
+
+  // The registration with a passkey comes after the providers, so ID Austria
+  // stays the first way offered. It asks for no password and offers no choice
+  // of the method.
+  const passkeyForm = legal && organization && passkeyRegistration && (
+    <RegisterWithPasskey
+      legal={legal}
+      organization={organization}
+      firstname={firstname}
+      lastname={lastname}
+      email={email}
+      requestId={requestId}
+      belowProviders={showProviders}
+    />
+  );
+
   return (
     <DynamicTheme branding={branding}>
       <div className="flex flex-col space-y-4">
@@ -122,7 +149,7 @@ export default async function Page(props: { searchParams: Promise<Record<string 
 
         {registerForm}
 
-        {loginSettings?.allowExternalIdp && !!identityProviders.length && (
+        {showProviders && (
           <>
             <SignInWithIdp
               showLabel={!!registerForm}
@@ -132,6 +159,8 @@ export default async function Page(props: { searchParams: Promise<Record<string 
             ></SignInWithIdp>
           </>
         )}
+
+        {passkeyForm}
       </div>
     </DynamicTheme>
   );

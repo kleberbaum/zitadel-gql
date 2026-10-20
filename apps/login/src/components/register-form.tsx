@@ -35,6 +35,12 @@ type Props = {
   requestId?: string;
   loginSettings?: LoginSettings;
   idpCount: number;
+  /**
+   * The registration with a passkey while self-registration is closed
+   * (PASSKEY_REGISTRATION): no choice of the method, never the password
+   * route, and no focus taken from the identity provider buttons above.
+   */
+  passkeyOnly?: boolean;
 };
 
 export function RegisterForm({
@@ -46,6 +52,7 @@ export function RegisterForm({
   requestId,
   loginSettings,
   idpCount = 0,
+  passkeyOnly = false,
 }: Props) {
   const { register, handleSubmit, formState } = useForm<Inputs>({
     mode: "onChange",
@@ -122,7 +129,7 @@ export function RegisterForm({
             <TextInput
               type="firstname"
               autoComplete="firstname"
-              autoFocus
+              autoFocus={!passkeyOnly}
               required
               {...register("firstname", { required: t("required.firstname") })}
               label={t("labels.firstname")}
@@ -157,18 +164,22 @@ export function RegisterForm({
           <PrivacyPolicyCheckboxes legal={legal} onChange={setTosAndPolicyAccepted} />
         )}
         {/* show chooser if both methods are allowed */}
-        {loginSettings && loginSettings.allowLocalAuthentication && loginSettings.passkeysType == PasskeysType.ALLOWED && (
-          <>
-            <p className="ztdl-p mt-4 mb-6 block text-left">
-              <Translated i18nKey="selectMethod" namespace="register" />
-            </p>
+        {!passkeyOnly &&
+          loginSettings &&
+          loginSettings.allowLocalAuthentication &&
+          loginSettings.passkeysType == PasskeysType.ALLOWED && (
+            <>
+              <p className="ztdl-p mt-4 mb-6 block text-left">
+                <Translated i18nKey="selectMethod" namespace="register" />
+              </p>
 
-            <div className="pb-4">
-              <AuthenticationMethodRadio selected={selected} selectionChanged={setSelected} />
-            </div>
-          </>
-        )}
-        {!loginSettings?.allowLocalAuthentication &&
+              <div className="pb-4">
+                <AuthenticationMethodRadio selected={selected} selectionChanged={setSelected} />
+              </div>
+            </>
+          )}
+        {!passkeyOnly &&
+          !loginSettings?.allowLocalAuthentication &&
           loginSettings?.passkeysType !== PasskeysType.ALLOWED &&
           (!loginSettings?.allowExternalIdp || !idpCount) && (
             <div className="py-4">
@@ -191,8 +202,9 @@ export function RegisterForm({
             variant={ButtonVariants.Primary}
             disabled={loading || !canSubmit}
             onClick={handleSubmit((values) => {
-              const usePasswordToContinue: boolean =
-                loginSettings?.allowLocalAuthentication && loginSettings?.passkeysType == PasskeysType.ALLOWED
+              const usePasswordToContinue: boolean = passkeyOnly
+                ? false // registerUser refuses a password here anyway
+                : loginSettings?.allowLocalAuthentication && loginSettings?.passkeysType == PasskeysType.ALLOWED
                   ? !(selected === methods[0]) // choose selection if both available
                   : !!loginSettings?.allowLocalAuthentication; // if password is chosen
               // set password as default if only password is allowed

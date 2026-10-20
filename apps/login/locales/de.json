@@ -338,6 +338,10 @@
         "confirmPassword": "Dieses Feld ist erforderlich"
       }
     },
+    "passkey": {
+      "title": "Mit Passkey registrieren",
+      "description": "Ein Passkey ersetzt das Passwort: Sie melden sich mit Face ID, Touch ID, Windows Hello oder einem Sicherheitsschlüssel an."
+    },
     "labels": {
       "firstname": "Vorname",
       "lastname": "Nachname",
