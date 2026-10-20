@@ -13,6 +13,7 @@ import {
   listAuthenticationMethodTypes,
   passwordReset,
   searchUsers,
+  ServiceConfig,
   setPassword,
   setUserPassword,
 } from "@/lib/zitadel";
@@ -20,12 +21,12 @@ import { Code, create, Duration } from "@zitadel/client";
 import { Checks, ChecksSchema } from "@zitadel/proto/zitadel/session/v2/session_service_pb";
 import { LoginSettings } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { User, UserState } from "@zitadel/proto/zitadel/user/v2/user_pb";
-import { SetPasswordRequestSchema } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
+import { AuthenticationMethodType, SetPasswordRequestSchema } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { completeFlowOrGetUrl } from "../client";
 import { getSessionCookieById, getSessionCookieByLoginName } from "../cookies";
-import { allowsPasskeyRegistration } from "../passkey-registration";
+import { allowsPasskeyRegistration, isPasskeyRegistrationEnabled } from "../passkey-registration";
 import { getServiceConfig } from "../service-url";
 import {
   checkEmailVerification,
@@ -36,6 +37,35 @@ import {
 import { getPublicHostWithProtocol } from "./host";
 
 const logger = createLogger("password");
+
+/**
+ * Whether the registration with a passkey (PASSKEY_REGISTRATION) keeps this
+ * account to a passkey: it applies to the account's organization, and the
+ * account signs in with neither a password nor an identity provider, since
+ * it has no method yet or a passkey only. Such an account gets no password
+ * through the login, neither a first one nor one by a reset code. The code
+ * goes to the address the person entered when registering, so with it a
+ * registration with a passkey would end with a password while
+ * self-registration is closed. Without the variable this asks Zitadel
+ * nothing.
+ */
+async function isKeptToPasskey({ serviceConfig, user }: { serviceConfig: ServiceConfig; user: User }) {
+  if (!isPasskeyRegistrationEnabled()) {
+    return false;
+  }
+
+  const loginSettings = await getLoginSettings({ serviceConfig, organization: user.details?.resourceOwner });
+
+  if (!allowsPasskeyRegistration(loginSettings)) {
+    return false;
+  }
+
+  const { authMethodTypes } = await listAuthenticationMethodTypes({ serviceConfig, userId: user.userId });
+
+  return !authMethodTypes.some(
+    (method) => method === AuthenticationMethodType.PASSWORD || method === AuthenticationMethodType.IDP,
+  );
+}
 
 type ResetPasswordCommand = {
   loginName: string;
@@ -115,6 +145,12 @@ export async function resetPassword(command: ResetPasswordCommand) {
       }
       return { error: t("errors.couldNotSendResetLink") };
     }
+  }
+
+  // No reset code goes to an account the registration with a passkey keeps
+  // to its passkey, see changePassword.
+  if (await isKeptToPasskey({ serviceConfig, user })) {
+    return { error: t("errors.passkeyRequired") };
   }
 
   const userId = user.userId;
@@ -468,6 +504,13 @@ export async function changePassword(command: { code?: string; userId: string; p
     return { error: t("errors.userInitialStateNotSupported") };
   }
 
+  // While people register with a passkey (PASSKEY_REGISTRATION), an account
+  // that cannot sign in otherwise gets a passkey, never a password, with a
+  // code or with the verification cookie a registration leaves.
+  if (await isKeptToPasskey({ serviceConfig, user })) {
+    return { error: t("errors.passkeyRequired") };
+  }
+
   // check if the user has no password set in order to set a password
   if (!command.code) {
     const authmethods = await listAuthenticationMethodTypes({ serviceConfig, userId });
@@ -477,15 +520,6 @@ export async function changePassword(command: { code?: string; userId: string; p
       return {
         error: t("errors.codeOrVerificationRequired"),
       };
-    }
-
-    // While people register with a passkey (PASSKEY_REGISTRATION), an account
-    // without a way to sign in gets a passkey, never a password. Otherwise a
-    // registration with a passkey could end with a password instead, through
-    // the verification cookie it leaves.
-    const userLoginSettings = await getLoginSettings({ serviceConfig, organization: user.details?.resourceOwner });
-    if (allowsPasskeyRegistration(userLoginSettings)) {
-      return { error: t("errors.passkeyRequired") };
     }
 
     // check if a verification was done earlier

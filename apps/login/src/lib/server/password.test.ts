@@ -504,6 +504,71 @@ describe("resetPassword", () => {
     expect(result).toEqual({ error: "errors.couldNotSendResetLink" });
     expect(mockPasswordReset).not.toHaveBeenCalled();
   });
+
+  describe("while people register with a passkey (P5)", () => {
+    let mockListAuthenticationMethodTypes: any;
+
+    const account = {
+      userId: "user-2",
+      preferredLoginName: "person@example.com",
+      details: { resourceOwner: "org-walther" },
+      type: { case: "human", value: { email: { email: "person@example.com" } } },
+    };
+
+    beforeEach(async () => {
+      const { listAuthenticationMethodTypes } = await import("../zitadel");
+      mockListAuthenticationMethodTypes = vi.mocked(listAuthenticationMethodTypes);
+
+      vi.stubEnv("PASSKEY_REGISTRATION", "true");
+      vi.stubEnv("EMAIL_VERIFICATION", "true");
+      mockSearchUsers.mockResolvedValue({ result: [account] });
+      mockGetLoginSettings.mockResolvedValue({
+        allowRegister: false,
+        allowLocalAuthentication: true,
+        passkeysType: PasskeysType.ALLOWED,
+      });
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [] });
+      mockPasswordReset.mockResolvedValue({});
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    test("sends no code to an account without a way to sign in", async () => {
+      const result = await resetPassword({ loginName: "person@example.com", requestId: "oidc_request" });
+
+      expect(result).toEqual({ error: "errors.passkeyRequired" });
+      expect(mockPasswordReset).not.toHaveBeenCalled();
+      expect(mockListAuthenticationMethodTypes).toHaveBeenCalledWith({ serviceConfig: expect.anything(), userId: "user-2" });
+    });
+
+    test("sends no code to an account with a passkey only", async () => {
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [AuthenticationMethodType.PASSKEY] });
+
+      const result = await resetPassword({ loginName: "person@example.com" });
+
+      expect(result).toEqual({ error: "errors.passkeyRequired" });
+      expect(mockPasswordReset).not.toHaveBeenCalled();
+    });
+
+    test("sends the code to an account with a password, as upstream does", async () => {
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [AuthenticationMethodType.PASSWORD] });
+
+      await resetPassword({ loginName: "person@example.com" });
+
+      expect(mockPasswordReset).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-2" }));
+    });
+
+    test("sends the code as upstream does without PASSKEY_REGISTRATION", async () => {
+      vi.stubEnv("PASSKEY_REGISTRATION", "");
+
+      await resetPassword({ loginName: "person@example.com" });
+
+      expect(mockPasswordReset).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-2" }));
+      expect(mockListAuthenticationMethodTypes).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("changePassword", () => {
@@ -556,7 +621,7 @@ describe("changePassword", () => {
     expect(mockSetUserPassword).not.toHaveBeenCalled();
   });
 
-  describe("for an account without a way to sign in while people register with a passkey (P5)", () => {
+  describe("while people register with a passkey (P5)", () => {
     let mockListAuthenticationMethodTypes: any;
     let mockCheckUserVerification: any;
 
@@ -595,7 +660,43 @@ describe("changePassword", () => {
       expect(mockGetLoginSettings).toHaveBeenCalledWith({ serviceConfig: expect.anything(), organization: "org-walther" });
     });
 
-    test("sets the password as upstream does without PASSKEY_REGISTRATION", async () => {
+    test("refuses a password with a reset code from the mailbox the person registered", async () => {
+      const result = await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
+
+      expect(result).toEqual({ error: "errors.passkeyRequired" });
+      expect(mockSetUserPassword).not.toHaveBeenCalled();
+    });
+
+    test("refuses a password with a reset code once the account has its passkey", async () => {
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [AuthenticationMethodType.PASSKEY] });
+
+      const result = await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
+
+      expect(result).toEqual({ error: "errors.passkeyRequired" });
+      expect(mockSetUserPassword).not.toHaveBeenCalled();
+    });
+
+    test("keeps the reset with a code of an account that has a password", async () => {
+      mockListAuthenticationMethodTypes.mockResolvedValue({
+        authMethodTypes: [AuthenticationMethodType.PASSWORD, AuthenticationMethodType.PASSKEY],
+      });
+
+      await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
+
+      expect(mockSetUserPassword).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" }),
+      );
+    });
+
+    test("keeps the reset with a code of an account linked to an identity provider, as before", async () => {
+      mockListAuthenticationMethodTypes.mockResolvedValue({ authMethodTypes: [AuthenticationMethodType.IDP] });
+
+      await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
+
+      expect(mockSetUserPassword).toHaveBeenCalledWith(expect.objectContaining({ code: "reset-code" }));
+    });
+
+    test("sets the password as upstream does without PASSKEY_REGISTRATION, and reads no login settings for it", async () => {
       vi.stubEnv("PASSKEY_REGISTRATION", "");
 
       await changePassword({ userId: "user-2", password: "Secret-Passw0rd" });
@@ -603,6 +704,7 @@ describe("changePassword", () => {
       expect(mockSetUserPassword).toHaveBeenCalledWith(
         expect.objectContaining({ userId: "user-2", password: "Secret-Passw0rd", code: undefined }),
       );
+      expect(mockGetLoginSettings).not.toHaveBeenCalled();
     });
 
     test("sets the password as upstream does while self-registration is open", async () => {
@@ -615,12 +717,6 @@ describe("changePassword", () => {
       await changePassword({ userId: "user-2", password: "Secret-Passw0rd" });
 
       expect(mockSetUserPassword).toHaveBeenCalledTimes(1);
-    });
-
-    test("leaves a reset with a code from the mailbox to upstream", async () => {
-      await changePassword({ userId: "user-2", password: "Secret-Passw0rd", code: "reset-code" });
-
-      expect(mockSetUserPassword).toHaveBeenCalledWith(expect.objectContaining({ code: "reset-code" }));
     });
   });
 });
