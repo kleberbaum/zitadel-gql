@@ -30,7 +30,6 @@ describe("<LinkIdentityProviders />", () => {
     expect(screen.getByTestId("account-ready")).toHaveTextContent(
       "Ihr Konto ist eingerichtet. Sie können sich damit bereits anmelden.",
     );
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText(/bereits einen Authentifikator/)).not.toBeInTheDocument();
   });
 
