@@ -82,6 +82,26 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     );
   }
 
+  // The local form only when self-registration is open. With it closed, the
+  // buttons of the identity providers that allow creation are the only way,
+  // and no "or sign in with" stands above them.
+  const registerForm = legal &&
+    passwordComplexitySettings &&
+    organization &&
+    loginSettings.allowRegister &&
+    loginSettings.allowLocalAuthentication && (
+      <RegisterForm
+        idpCount={!loginSettings?.allowExternalIdp ? 0 : identityProviders.length}
+        legal={legal}
+        organization={organization}
+        firstname={firstname}
+        lastname={lastname}
+        email={email}
+        requestId={requestId}
+        loginSettings={loginSettings}
+      ></RegisterForm>
+    );
+
   return (
     <DynamicTheme branding={branding}>
       <div className="flex flex-col space-y-4">
@@ -100,28 +120,12 @@ export default async function Page(props: { searchParams: Promise<Record<string 
           </Alert>
         )}
 
-        {/* The local form only when self-registration is open. With it closed, the
-            buttons of the identity providers that allow creation are the only way. */}
-        {legal &&
-          passwordComplexitySettings &&
-          organization &&
-          loginSettings.allowRegister &&
-          loginSettings.allowLocalAuthentication && (
-            <RegisterForm
-              idpCount={!loginSettings?.allowExternalIdp ? 0 : identityProviders.length}
-              legal={legal}
-              organization={organization}
-              firstname={firstname}
-              lastname={lastname}
-              email={email}
-              requestId={requestId}
-              loginSettings={loginSettings}
-            ></RegisterForm>
-          )}
+        {registerForm}
 
         {loginSettings?.allowExternalIdp && !!identityProviders.length && (
           <>
             <SignInWithIdp
+              showLabel={!!registerForm}
               identityProviders={identityProviders}
               requestId={requestId}
               organization={organization}

@@ -90,6 +90,18 @@ describe("register page", () => {
     expect(vi.mocked(SignInWithIdp).mock.calls[0][0].identityProviders).toEqual([creationIDP]);
   });
 
+  test("puts no 'or sign in with' above the buttons while self-registration is closed", async () => {
+    vi.mocked(getLoginSettings).mockResolvedValue({
+      allowRegister: false,
+      allowExternalIdp: true,
+      allowLocalAuthentication: true,
+    } as any);
+
+    await renderPage();
+
+    expect(vi.mocked(SignInWithIdp).mock.calls[0][0].showLabel).toBe(false);
+  });
+
   test("shows the registration form together with the buttons when self-registration is open", async () => {
     vi.mocked(getLoginSettings).mockResolvedValue({
       allowRegister: true,
@@ -101,6 +113,7 @@ describe("register page", () => {
 
     expect(getByTestId("register-form")).toBeInTheDocument();
     expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
+    expect(vi.mocked(SignInWithIdp).mock.calls[0][0].showLabel).toBe(true);
   });
 
   test("says registration is disabled when it is closed and no provider allows creation", async () => {
