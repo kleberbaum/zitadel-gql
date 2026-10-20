@@ -459,5 +459,13 @@
     "failedLoading": "Daten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "tryagain": "Erneut versuchen",
     "couldNotContinueSession": "Sitzung konnte nicht fortgesetzt werden - fehlende Benutzerinformationen"
+  },
+  "walther": {
+    "home": "Zur Startseite des Walther Wiki",
+    "university": "Universität Wien",
+    "legal": "Rechtliches",
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "terms": "Nutzungsbedingungen"
   }
 }

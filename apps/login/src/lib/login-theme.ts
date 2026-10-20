@@ -16,3 +16,29 @@ export function getLoginTheme(): LoginTheme | undefined {
   const value = process.env.LOGIN_THEME?.trim().toLowerCase();
   return LOGIN_THEMES.find((theme) => theme === value);
 }
+
+/** The wiki the Walther look belongs to. Its English pages live below /en. */
+export const WALTHER_SITE = "https://walther.exp.univie.ac.at";
+
+export type WaltherLinks = {
+  home: string;
+  imprint: string;
+  privacy: string;
+  terms: string;
+};
+
+/**
+ * The wiki's start page and the three legal pages its footer links, in the
+ * language of the login. German is the wiki's default, every other language
+ * gets the English pages.
+ */
+export function getWaltherLinks(locale: string): WaltherLinks {
+  const prefix = locale === "de" ? "" : "/en";
+
+  return {
+    home: `${WALTHER_SITE}${prefix}/`,
+    imprint: `${WALTHER_SITE}${prefix}/imprint/`,
+    privacy: `${WALTHER_SITE}${prefix}/privacy-policy/`,
+    terms: `${WALTHER_SITE}${prefix}/terms-of-service/`,
+  };
+}

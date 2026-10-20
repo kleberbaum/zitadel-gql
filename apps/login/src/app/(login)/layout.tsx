@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { Skeleton } from "@/components/skeleton";
 import { ThemeProvider } from "@/components/theme-provider";
 import ThemeSwitch from "@/components/theme-switch";
+import { WaltherFrame } from "@/components/walther-frame";
 import { LANGS, getLanguage } from "@/lib/i18n";
 import { getLoginTheme } from "@/lib/login-theme";
 import { getServiceConfig } from "@/lib/service-url";
@@ -69,17 +70,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               }
             >
               <LanguageProvider>
-                <BackgroundWrapper
-                  className={`bg-background-light-600 dark:bg-background-dark-600 relative flex min-h-screen flex-col justify-center`}
-                >
-                  <div className="relative mx-auto w-full max-w-[1100px] py-8">
-                    <div>{children}</div>
-                    <div className="mx-auto flex max-w-[440px] flex-row items-center justify-end space-x-4 px-4 py-4 md:max-w-full md:px-8">
-                      <LanguageSwitcher languages={languages} />
-                      <ThemeSwitch />
+                {loginTheme === "walther" ? (
+                  <WaltherFrame languages={languages}>{children}</WaltherFrame>
+                ) : (
+                  <BackgroundWrapper
+                    className={`bg-background-light-600 dark:bg-background-dark-600 relative flex min-h-screen flex-col justify-center`}
+                  >
+                    <div className="relative mx-auto w-full max-w-[1100px] py-8">
+                      <div>{children}</div>
+                      <div className="mx-auto flex max-w-[440px] flex-row items-center justify-end space-x-4 px-4 py-4 md:max-w-full md:px-8">
+                        <LanguageSwitcher languages={languages} />
+                        <ThemeSwitch />
+                      </div>
                     </div>
-                  </div>
-                </BackgroundWrapper>
+                  </BackgroundWrapper>
+                )}
               </LanguageProvider>
             </Suspense>
           </Tooltip.Provider>

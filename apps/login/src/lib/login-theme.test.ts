@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { getLoginTheme } from "./login-theme";
+import { getLoginTheme, getWaltherLinks } from "./login-theme";
 
 describe("getLoginTheme", () => {
   afterEach(() => {
@@ -36,5 +36,27 @@ describe("getLoginTheme", () => {
 
     vi.stubEnv("LOGIN_THEME", "");
     expect(getLoginTheme()).toBeUndefined();
+  });
+});
+
+describe("getWaltherLinks", () => {
+  test("points to the wiki's German pages for German", () => {
+    expect(getWaltherLinks("de")).toEqual({
+      home: "https://walther.exp.univie.ac.at/",
+      imprint: "https://walther.exp.univie.ac.at/imprint/",
+      privacy: "https://walther.exp.univie.ac.at/privacy-policy/",
+      terms: "https://walther.exp.univie.ac.at/terms-of-service/",
+    });
+  });
+
+  test("points to the English pages for English and every other language", () => {
+    for (const locale of ["en", "fr", "uk"]) {
+      expect(getWaltherLinks(locale)).toEqual({
+        home: "https://walther.exp.univie.ac.at/en/",
+        imprint: "https://walther.exp.univie.ac.at/en/imprint/",
+        privacy: "https://walther.exp.univie.ac.at/en/privacy-policy/",
+        terms: "https://walther.exp.univie.ac.at/en/terms-of-service/",
+      });
+    }
   });
 });
