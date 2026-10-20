@@ -1,75 +1,36 @@
 // test/idp-links.test.ts
-// The idpLinks field of users against a stand-in for Zitadel: a local
-// Connect server answering ListIDPLinks in the binary format the transport
-// speaks. No Zitadel and no network beyond the loopback interface.
-import {afterAll, beforeAll, beforeEach, describe, expect, test} from 'bun:test'
+// The idpLinks field of users against the stand-in Zitadel of
+// fake-zitadel.ts. No Zitadel and no network beyond the loopback interface.
+import {beforeEach, describe, expect, test} from 'bun:test'
 import {create, fromBinary, toBinary} from '@bufbuild/protobuf'
-import {asyncContext} from '@getcronit/pylon'
 import {
   ListIDPLinksRequestSchema,
   ListIDPLinksResponseSchema
 } from '@zitadel/proto/zitadel/user/v2/user_service_pb'
 
+import {answer, calls, inRequest, protoResponse, refusal, resetZitadel} from './fake-zitadel'
 import {HumanUser} from '../src/user/HumanUser'
 import {MachineUser} from '../src/user/MachineUser'
 import {UserState} from '../src/user/types'
 
-type Call = {method: string; authorization: string | null; orgId: string | null; userId?: string}
-
-const calls: Call[] = []
 const linksByUser = new Map<string, {idpId: string; userId: string; userName: string}[]>()
-let refuseLinks = false
 
-const zitadel = Bun.serve({
-  port: 0,
-  hostname: '127.0.0.1',
-  async fetch(req) {
-    const method = new URL(req.url).pathname.split('/').pop() ?? ''
-    const body = new Uint8Array(await req.arrayBuffer())
-    const call: Call = {
-      method,
-      authorization: req.headers.get('authorization'),
-      orgId: req.headers.get('x-zitadel-orgid')
-    }
-    calls.push(call)
-
-    if (method !== 'ListIDPLinks') {
-      return new Response('unexpected call', {status: 404})
-    }
-
-    if (refuseLinks) {
-      return Response.json(
-        {code: 'permission_denied', message: 'No matching permissions found'},
-        {status: 403}
-      )
-    }
-
+function answerLinks() {
+  answer('ListIDPLinks', body => {
     const {userId} = fromBinary(ListIDPLinksRequestSchema, body)
-    call.userId = userId
     const response = create(ListIDPLinksResponseSchema, {result: linksByUser.get(userId) ?? []})
-    return new Response(toBinary(ListIDPLinksResponseSchema, response), {
-      headers: {'content-type': 'application/proto'}
-    })
-  }
-})
+    return protoResponse(toBinary(ListIDPLinksResponseSchema, response))
+  })
+}
 
-/**
- * Runs fn the way a resolver runs, inside a request whose bearer token is
- * the given one. The facade reads the caller's token and its per-request
- * caches from this context.
- */
-function inRequest<T>(token: string, fn: () => Promise<T>): Promise<T> {
-  const store = new Map<string, unknown>()
-  const ctx = {
-    req: {
-      header: (name: string) => (name.toLowerCase() === 'authorization' ? `Bearer ${token}` : undefined)
-    },
-    get: (key: string) => store.get(key),
-    set: (key: string, value: unknown) => {
-      store.set(key, value)
-    }
-  }
-  return asyncContext.run(ctx as any, fn)
+function linkCalls() {
+  return calls
+    .filter(call => call.method === 'ListIDPLinks')
+    .map(call => ({
+      authorization: call.authorization,
+      orgId: call.orgId,
+      userId: fromBinary(ListIDPLinksRequestSchema, call.body).userId
+    }))
 }
 
 function human(id: string) {
@@ -87,19 +48,10 @@ function human(id: string) {
   })
 }
 
-beforeAll(() => {
-  // the client is created on first use and reads its base URL then
-  process.env.ZITADEL_BASE_URL = `http://127.0.0.1:${zitadel.port}`
-})
-
-afterAll(() => {
-  zitadel.stop(true)
-})
-
 beforeEach(() => {
-  calls.length = 0
+  resetZitadel()
   linksByUser.clear()
-  refuseLinks = false
+  answerLinks()
 })
 
 describe('idpLinks', () => {
@@ -128,9 +80,7 @@ describe('idpLinks', () => {
   test("forwards the caller's own token and asks for exactly that user", async () => {
     await inRequest('caller-token', () => human('user-1').idpLinks())
 
-    expect(calls).toEqual([
-      {method: 'ListIDPLinks', authorization: 'Bearer caller-token', orgId: 'org-walther', userId: 'user-1'}
-    ])
+    expect(linkCalls()).toEqual([{authorization: 'Bearer caller-token', orgId: 'org-walther', userId: 'user-1'}])
   })
 
   test('answers an empty list for a user without links', async () => {
@@ -149,19 +99,16 @@ describe('idpLinks', () => {
       await human('user-1').idpLinks()
     })
 
-    expect(calls.filter(call => call.method === 'ListIDPLinks')).toHaveLength(1)
+    expect(linkCalls()).toHaveLength(1)
   })
 
   test('fails the field when Zitadel refuses, instead of answering no links', async () => {
-    refuseLinks = true
+    answer('ListIDPLinks', () => refusal())
 
-    await expect(inRequest('caller-token', () => human('user-1').idpLinks())).rejects.toThrow(
-      /permission/i
-    )
+    await expect(inRequest('caller-token', () => human('user-1').idpLinks())).rejects.toThrow(/permission/i)
   })
 
   test('machine users answer the same field', async () => {
-    linksByUser.set('machine-1', [])
     const machine = new MachineUser({
       id: 'machine-1',
       state: UserState.USER_STATE_ACTIVE,
@@ -175,6 +122,6 @@ describe('idpLinks', () => {
     })
 
     expect(await inRequest('caller-token', () => machine.idpLinks())).toEqual([])
-    expect(calls[0]).toMatchObject({method: 'ListIDPLinks', userId: 'machine-1'})
+    expect(linkCalls()).toEqual([{authorization: 'Bearer caller-token', orgId: 'org-walther', userId: 'machine-1'}])
   })
 })
