@@ -1,6 +1,6 @@
 import { BackgroundWrapper } from "@/components/background-wrapper";
-import { WaltherFrame } from "@/components/walther-frame";
-import { isValidElement, ReactElement, ReactNode } from "react";
+import { WaltherFrame, WaltherFrameFallback } from "@/components/walther-frame";
+import { isValidElement, ReactElement, ReactNode, Suspense } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import RootLayout from "./layout";
 
@@ -39,6 +39,23 @@ function contains(node: ReactNode, type: unknown): boolean {
   return element.type === type || contains(element.props.children, type);
 }
 
+/** The first element of the given component in the element tree, the Suspense fallback aside. */
+function find(node: ReactNode, type: unknown): ReactElement<any> | undefined {
+  if (Array.isArray(node)) {
+    return node.map((child) => find(child, type)).find(Boolean);
+  }
+  if (!isValidElement(node)) {
+    return undefined;
+  }
+  const element = node as ReactElement<{ children?: ReactNode }>;
+  return element.type === type ? element : find(element.props.children, type);
+}
+
+/** What the layout shows while a page loads. */
+function fallback(html: ReactNode): ReactNode {
+  return find(html, Suspense)?.props.fallback;
+}
+
 describe("root layout", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -71,5 +88,23 @@ describe("root layout", () => {
 
     expect(contains(html, WaltherFrame)).toBe(true);
     expect(contains(html, BackgroundWrapper)).toBe(false);
+  });
+
+  test("draws the wiki's frame while a page loads in the Walther look", async () => {
+    vi.stubEnv("LOGIN_THEME", "walther");
+
+    const html = await RootLayout({ children: <div /> });
+
+    expect(contains(fallback(html), WaltherFrameFallback)).toBe(true);
+    expect(contains(fallback(html), BackgroundWrapper)).toBe(false);
+  });
+
+  test("keeps upstream's loading state while LOGIN_THEME is unset", async () => {
+    vi.stubEnv("LOGIN_THEME", undefined);
+
+    const html = await RootLayout({ children: <div /> });
+
+    expect(contains(fallback(html), BackgroundWrapper)).toBe(true);
+    expect(contains(fallback(html), WaltherFrameFallback)).toBe(false);
   });
 });

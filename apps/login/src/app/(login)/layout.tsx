@@ -7,7 +7,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { Skeleton } from "@/components/skeleton";
 import { ThemeProvider } from "@/components/theme-provider";
 import ThemeSwitch from "@/components/theme-switch";
-import { WaltherFrame } from "@/components/walther-frame";
+import { WaltherFrame, WaltherFrameFallback } from "@/components/walther-frame";
 import { LANGS, getLanguage } from "@/lib/i18n";
 import { getLoginTheme } from "@/lib/login-theme";
 import { getServiceConfig } from "@/lib/service-url";
@@ -55,18 +55,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Tooltip.Provider>
             <Suspense
               fallback={
-                <BackgroundWrapper
-                  className={`bg-background-light-600 dark:bg-background-dark-600 relative flex min-h-screen flex-col justify-center`}
-                >
-                  <div className="relative mx-auto w-full max-w-[440px] py-8">
-                    <Skeleton>
-                      <div className="h-40"></div>
-                    </Skeleton>
-                    <div className="flex flex-row items-center justify-end space-x-4 py-4">
-                      <ThemeSwitch />
+                loginTheme === "walther" ? (
+                  // The wiki's frame around the skeleton, where the card will be.
+                  <WaltherFrameFallback>
+                    <div className="relative mx-auto w-full max-w-[440px] px-4 py-4">
+                      <Skeleton>
+                        <div className="h-40"></div>
+                      </Skeleton>
                     </div>
-                  </div>
-                </BackgroundWrapper>
+                  </WaltherFrameFallback>
+                ) : (
+                  <BackgroundWrapper
+                    className={`bg-background-light-600 dark:bg-background-dark-600 relative flex min-h-screen flex-col justify-center`}
+                  >
+                    <div className="relative mx-auto w-full max-w-[440px] py-8">
+                      <Skeleton>
+                        <div className="h-40"></div>
+                      </Skeleton>
+                      <div className="flex flex-row items-center justify-end space-x-4 py-4">
+                        <ThemeSwitch />
+                      </div>
+                    </div>
+                  </BackgroundWrapper>
+                )
               }
             >
               <LanguageProvider>

@@ -3,7 +3,7 @@ import { getLocale } from "next-intl/server";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import de from "../../locales/de.json";
 import en from "../../locales/en.json";
-import { WaltherFrame } from "./walther-frame";
+import { WaltherFrame, WaltherFrameFallback } from "./walther-frame";
 
 vi.mock("next-intl/server", () => ({
   getLocale: vi.fn(async () => "de"),
@@ -103,5 +103,25 @@ describe("<WaltherFrame />", () => {
     const backdrop = container.querySelector("svg[aria-hidden='true']");
     expect(backdrop?.querySelector("pattern#walther-arrows")).not.toBeNull();
     expect(backdrop?.querySelectorAll(":scope > svg > path")).toHaveLength(6);
+  });
+});
+
+describe("<WaltherFrameFallback />", () => {
+  afterEach(cleanup);
+
+  test("draws the wiki's header, backdrop and footer around a loading page, without any text", () => {
+    const { container } = render(
+      <WaltherFrameFallback>
+        <div data-testid="skeleton" />
+      </WaltherFrameFallback>,
+    );
+
+    expect(within(screen.getByRole("main")).getByTestId("skeleton")).toBeInTheDocument();
+    expect(within(screen.getByRole("banner")).getAllByRole("img", { name: "Universität Wien" })).toHaveLength(2);
+    expect(within(screen.getByRole("banner")).getByTestId("theme-switch")).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(/^\s*$/);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("language-switcher")).not.toBeInTheDocument();
+    expect(container.querySelector("svg[aria-hidden='true'] pattern#walther-arrows")).not.toBeNull();
   });
 });

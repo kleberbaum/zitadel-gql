@@ -13,6 +13,10 @@ export const WALTHER_LOGO = {
   dark: `${basePath}/walther/universitaet-wien-dark.svg`,
 };
 
+// The university's name in the frame while a page loads, before its language
+// is known. The text alternative of the logo, as the wiki gives it.
+const UNIVERSITY = "Universität Wien";
+
 /**
  * The page of the Walther look (LOGIN_THEME=walther): the wiki's header with
  * the University of Vienna logo, its arrow backdrop, and its footer with the
@@ -24,18 +28,108 @@ export async function WaltherFrame({ children, languages }: { children: ReactNod
   const links = getWaltherLinks(await getLocale());
 
   return (
+    <FrameLayout
+      logo={
+        <a href={links.home} aria-label={t("home")} className="flex shrink-0 rounded-md">
+          <HeaderLogo alt={t("university")} />
+        </a>
+      }
+      controls={
+        <>
+          <LanguageSwitcher languages={languages} />
+          <ThemeSwitch />
+        </>
+      }
+      legal={
+        <nav aria-label={t("legal")} className="flex flex-col gap-3">
+          <p className="font-medium">{t("legal")}</p>
+          {[
+            [links.imprint, t("imprint")],
+            [links.privacy, t("privacy")],
+            [links.terms, t("terms")],
+          ].map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-white/70 transition-colors hover:text-white"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      }
+      university={t("university")}
+    >
+      {children}
+    </FrameLayout>
+  );
+}
+
+/**
+ * The frame of the Walther look while a page loads, as the fallback of the
+ * root layout. The page waits for its messages, so this draws the frame
+ * without them: the logo, not yet linked, the theme switch, and the footer
+ * with the room of its links but none of their text. Header and footer stand
+ * where the frame draws them, so only the card area changes when the page
+ * arrives.
+ */
+export function WaltherFrameFallback({ children }: { children: ReactNode }) {
+  return (
+    <FrameLayout
+      logo={
+        <span className="flex shrink-0">
+          <HeaderLogo alt={UNIVERSITY} />
+        </span>
+      }
+      controls={<ThemeSwitch />}
+      legal={
+        <div aria-hidden="true" className="invisible flex w-40 flex-col gap-3">
+          {["legal", "imprint", "privacy", "terms"].map((line) => (
+            <span key={line} className="font-medium">
+              {"\u00a0"}
+            </span>
+          ))}
+        </div>
+      }
+    >
+      {children}
+    </FrameLayout>
+  );
+}
+
+function HeaderLogo({ alt }: { alt: string }) {
+  return (
+    <>
+      <img src={WALTHER_LOGO.light} alt={alt} className="h-11 w-auto sm:h-[52px] dark:hidden" />
+      <img src={WALTHER_LOGO.dark} alt={alt} className="hidden h-11 w-auto sm:h-[52px] dark:block" />
+    </>
+  );
+}
+
+/** The header, the backdrop and the footer around a page, with their content passed in. */
+function FrameLayout({
+  children,
+  logo,
+  controls,
+  legal,
+  university,
+}: {
+  children: ReactNode;
+  logo: ReactNode;
+  controls: ReactNode;
+  legal: ReactNode;
+  /** The university's name below the footer's rule, left blank while the language is unknown. */
+  university?: string;
+}) {
+  return (
     <div className="bg-background-light-600 dark:bg-background-dark-600 relative isolate flex min-h-screen flex-col">
       <WaltherBackdrop />
 
       <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-6 sm:px-8 lg:px-12 lg:py-10">
-        <a href={links.home} aria-label={t("home")} className="flex shrink-0 rounded-md">
-          <img src={WALTHER_LOGO.light} alt={t("university")} className="h-11 w-auto sm:h-[52px] dark:hidden" />
-          <img src={WALTHER_LOGO.dark} alt={t("university")} className="hidden h-11 w-auto sm:h-[52px] dark:block" />
-        </a>
-        <div className="ml-auto flex flex-row items-center gap-4">
-          <LanguageSwitcher languages={languages} />
-          <ThemeSwitch />
-        </div>
+        {logo}
+        <div className="ml-auto flex flex-row items-center gap-4">{controls}</div>
       </header>
 
       <main className="relative mx-auto flex w-full max-w-[1100px] flex-1 flex-col justify-center py-8">{children}</main>
@@ -43,27 +137,10 @@ export async function WaltherFrame({ children, languages }: { children: ReactNod
       <footer className="bg-[#0a0a0a] text-white">
         <div className="mx-auto w-full max-w-7xl px-5 py-12 lg:px-8">
           <div className="flex flex-wrap items-start justify-between gap-10">
-            <img src={WALTHER_LOGO.dark} alt={t("university")} className="h-[50px] w-auto" />
-            <nav aria-label={t("legal")} className="flex flex-col gap-3">
-              <p className="font-medium">{t("legal")}</p>
-              {[
-                [links.imprint, t("imprint")],
-                [links.privacy, t("privacy")],
-                [links.terms, t("terms")],
-              ].map(([href, label]) => (
-                <a
-                  key={href}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-white/70 transition-colors hover:text-white"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
+            <img src={WALTHER_LOGO.dark} alt={university ?? UNIVERSITY} className="h-[50px] w-auto" />
+            {legal}
           </div>
-          <p className="mt-8 border-t border-white/20 pt-5 text-white/60">{t("university")}</p>
+          <p className="mt-8 border-t border-white/20 pt-5 text-white/60">{university ?? "\u00a0"}</p>
         </div>
       </footer>
     </div>
