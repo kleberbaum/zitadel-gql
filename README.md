@@ -75,11 +75,12 @@ README.zitadel.md the upstream's README, kept for the lineage
 
 ## Login v2 against upstream
 
-`apps/login` differs from upstream in six places. Together they let an
+`apps/login` differs from upstream in nine places. Together they let an
 identity provider that allows creation register people while the password
 self-registration of the organization stays closed, as the v1 login does,
-they make the email code part of such a registration, and they let an
-existing account link such a provider.
+they make the email code part of such a registration, they let an
+existing account link such a provider, and they give the login the look of
+the site it signs people in to.
 
 1. `registerUserAndLinkToIDP` registers when the organization allows
    external identity providers and either self-registration is open or the
@@ -102,6 +103,37 @@ existing account link such a provider.
 6. `/authenticator/set`, the only place where an existing account links a
    provider, accepts a valid session besides the recent verification it
    asked for, so a user who just signed in with a password can add one.
+7. `/authenticator/set` no longer warns an account that has an
+   authenticator that one is set up already. It says in a neutral sentence
+   that the account can sign in, offers each provider that allows linking
+   under a heading named after it ("Konto mit ID Austria verknüpfen", "Link
+   your account with ID Austria"), and names a provider the account is
+   linked with already (user/v2 `ListIDPLinks`) instead of offering it
+   again. An account without an authenticator gets upstream's page.
+8. `LOGIN_THEME` chooses the look per deployment. The root layout reads it
+   at request time, unlike the `NEXT_PUBLIC_THEME_*` settings Next.js
+   inlines at build time, so one image serves every look. Unset, the login
+   looks as upstream's does. `LOGIN_THEME=walther` dresses it like the
+   Walther wiki of the University of Vienna (walther.exp.univie.ac.at): the
+   wiki's system font stack (the wiki loads no webfont, so neither does the
+   login), its brand blue and blue-tinted greys, a white page and card with
+   the wiki's panel shadow in light mode, its gray.800 page in dark mode,
+   12px corners, semibold 40px buttons, outlined secondary and provider
+   buttons, inputs with a brand ring, the wiki's arrow backdrop, the
+   University of Vienna logo in the header and the wiki's footer with
+   Impressum, Datenschutz and Nutzungsbedingungen. The look lives in
+   `src/styles/walther.scss`, which applies only below
+   `html[data-login-theme="walther"]`, and in
+   `src/components/walther-frame.tsx`. It sets the `--theme-*` colour
+   variables with `!important`, so it wins over the colours of the
+   organization's branding settings, and it styles the hook classes
+   `ztdl-card`, `ztdl-button`, `ztdl-input` and `ztdl-idp-button`. Those
+   classes and `aria-invalid` on an input with an error are all it adds to
+   upstream's components. The logo in `public/walther/` is the
+   university's lockup as the wiki draws it.
+9. The build copies `public/` beside the standalone server as well, which
+   serves public files from there. Upstream copies it one level up only,
+   so the favicon and the logos answered 404 in the image.
 
 The workspace pins `@bufbuild/protobuf` to one version in
 `pnpm-workspace.yaml`. Two copies make the Connect transport of the login
