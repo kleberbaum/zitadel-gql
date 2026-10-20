@@ -83,17 +83,31 @@ const session = {
   },
 };
 
+function newUser(emailVerified: boolean) {
+  return {
+    user: {
+      userId: "user-1",
+      type: {
+        case: "human",
+        value: { email: { email: "person@example.com", isVerified: emailVerified } },
+      },
+    },
+  };
+}
+
 describe("registerUserAndLinkToIDP", () => {
   let zitadel: typeof import("../zitadel");
   let cookie: typeof import("./cookie");
   let client: typeof import("../client");
   let mfaHelper: typeof import("../mfa-helper");
+  let verify: typeof import("./verify");
 
   beforeEach(async () => {
     zitadel = await import("../zitadel");
     cookie = await import("./cookie");
     client = await import("../client");
     mfaHelper = await import("../mfa-helper");
+    verify = await import("./verify");
 
     vi.mocked(zitadel.getLoginSettings).mockResolvedValue({
       allowRegister: false,
@@ -110,6 +124,7 @@ describe("registerUserAndLinkToIDP", () => {
     vi.mocked(zitadel.addIDPLink).mockResolvedValue({} as any);
     vi.mocked(zitadel.listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
     vi.mocked(cookie.createSessionForIdpAndUpdateCookie).mockResolvedValue(session as any);
+    vi.mocked(zitadel.getUserByID).mockResolvedValue(newUser(false) as any);
     vi.mocked(mfaHelper.checkMFAFactors).mockResolvedValue(undefined);
     vi.mocked(client.completeFlowOrGetUrl).mockResolvedValue({ redirect: "https://wiki.example.com/callback" });
   });
@@ -205,6 +220,86 @@ describe("registerUserAndLinkToIDP", () => {
 
       expect(result).toEqual({ error: "errors.couldNotGetLoginSettings" });
       expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the email code right after the registration (P2)", () => {
+    let savedEmailVerification: string | undefined;
+
+    beforeEach(() => {
+      savedEmailVerification = process.env.EMAIL_VERIFICATION;
+      process.env.EMAIL_VERIFICATION = "true";
+      vi.mocked(verify.trySendVerification).mockResolvedValue(true);
+      vi.mocked(mfaHelper.checkMFAFactors).mockResolvedValue({ redirect: "/mfa/set?force=true" });
+    });
+
+    afterEach(() => {
+      if (savedEmailVerification === undefined) {
+        delete process.env.EMAIL_VERIFICATION;
+      } else {
+        process.env.EMAIL_VERIFICATION = savedEmailVerification;
+      }
+    });
+
+    test("sends the first code once and asks for it before any MFA step", async () => {
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toHaveProperty("redirect");
+      const url = new URL((result as { redirect: string }).redirect, "https://login.example.com");
+      expect(url.pathname).toBe("/verify");
+      expect(url.searchParams.get("codeSent")).toBe("true");
+      expect(url.searchParams.get("loginName")).toBe("person@example.com");
+      expect(url.searchParams.get("organization")).toBe(ORG_ID);
+      expect(url.searchParams.get("requestId")).toBe("oidc_request");
+
+      expect(verify.trySendVerification).toHaveBeenCalledTimes(1);
+      expect(verify.trySendVerification).toHaveBeenCalledWith({
+        userId: "user-1",
+        isInvite: false,
+        requestId: "oidc_request",
+      });
+      expect(mfaHelper.checkMFAFactors).not.toHaveBeenCalled();
+      expect(client.completeFlowOrGetUrl).not.toHaveBeenCalled();
+    });
+
+    test("leaves codeSent off when the code could not be sent, so /verify offers to send it again", async () => {
+      vi.mocked(verify.trySendVerification).mockResolvedValue(false);
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      const url = new URL((result as { redirect: string }).redirect, "https://login.example.com");
+      expect(url.pathname).toBe("/verify");
+      expect(url.searchParams.has("codeSent")).toBe(false);
+      expect(verify.trySendVerification).toHaveBeenCalledTimes(1);
+    });
+
+    test("goes on to the MFA checks when the address is verified already", async () => {
+      vi.mocked(zitadel.getUserByID).mockResolvedValue(newUser(true) as any);
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ redirect: "/mfa/set?force=true" });
+      expect(verify.trySendVerification).not.toHaveBeenCalled();
+      expect(mfaHelper.checkMFAFactors).toHaveBeenCalledTimes(1);
+    });
+
+    test("asks for no code when EMAIL_VERIFICATION is not true", async () => {
+      process.env.EMAIL_VERIFICATION = "false";
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ redirect: "/mfa/set?force=true" });
+      expect(verify.trySendVerification).not.toHaveBeenCalled();
+    });
+
+    test("answers userNotFound when the new account cannot be read back", async () => {
+      vi.mocked(zitadel.getUserByID).mockRejectedValue(new Error("unavailable"));
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ error: "errors.userNotFound" });
+      expect(verify.trySendVerification).not.toHaveBeenCalled();
+      expect(mfaHelper.checkMFAFactors).not.toHaveBeenCalled();
     });
   });
 });

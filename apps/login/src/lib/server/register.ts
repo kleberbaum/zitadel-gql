@@ -323,23 +323,27 @@ export async function registerUserAndLinkToIDP(
     return { error: t("errors.couldNotCreateSession") };
   }
 
-  // const userResponse = await getUserByID({
-  //   serviceConfig.baseUrl,
-  //   userId: session?.factors?.user?.id,
-  // });
+  // The new account's email address is unverified. Ask for the code now,
+  // before any MFA step, as the sign-in of an existing user through an
+  // identity provider does (createNewSessionFromIdpIntent). The check sends
+  // the first code itself and passes codeSent=true to /verify, which
+  // therefore does not send another one (#11995).
+  const userResponse = await getUserByID({ serviceConfig, userId: session.factors.user.id }).catch((error) => {
+    logger.error("Failed to get user after session creation", { error });
+    return null;
+  });
 
-  // if (!userResponse.user) {
-  //   return { error: "User not found in the system" };
-  // }
+  if (!userResponse?.user) {
+    return { error: t("errors.userNotFound") };
+  }
 
-  // const humanUser = userResponse.user.type.case === "human" ? userResponse.user.type.value : undefined;
+  const humanUser = userResponse.user.type.case === "human" ? userResponse.user.type.value : undefined;
 
-  // check to see if user was verified
-  // const emailVerificationCheck = checkEmailVerification(session, humanUser, command.organization, command.requestId);
+  const emailVerificationCheck = await checkEmailVerification(session, humanUser, command.organization, command.requestId);
 
-  // if (emailVerificationCheck?.redirect) {
-  //   return emailVerificationCheck;
-  // }
+  if (emailVerificationCheck?.redirect) {
+    return emailVerificationCheck;
+  }
 
   // check if user has MFA methods
   let authMethods;
