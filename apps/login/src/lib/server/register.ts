@@ -23,6 +23,7 @@ import { completeFlowOrGetUrl } from "../client";
 import { getOrSetFingerprintId } from "../fingerprint";
 import { idpIntentNames, idpLinkUserName } from "../idp";
 import { createLogger } from "../logger";
+import { allowsPasskeyRegistration } from "../passkey-registration";
 import { getServiceConfig } from "../service-url";
 import { checkEmailVerification, checkMFAFactors } from "../verify-helper";
 
@@ -84,7 +85,10 @@ export async function registerUser(
     return { error: t("errors.couldNotGetLoginSettings") };
   }
 
-  if (!loginSettings.allowRegister) {
+  // With self-registration closed, PASSKEY_REGISTRATION lets a person register
+  // with a passkey, never with a password, whatever the client sends. The
+  // account then gets its passkey on /passkey/set below.
+  if (!loginSettings.allowRegister && (command.password || !allowsPasskeyRegistration(loginSettings))) {
     return { error: t("errors.registerNotAllowed") };
   }
 

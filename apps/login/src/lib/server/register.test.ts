@@ -1,3 +1,4 @@
+import { PasskeysType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { registerUser, registerUserAndLinkToIDP } from "./register";
 
@@ -434,5 +435,132 @@ describe("registerUser", () => {
 
     expect(result).toEqual({ error: "errors.registerNotAllowed" });
     expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+  });
+
+  describe("with a passkey while self-registration is closed (P5)", () => {
+    let cookie: typeof import("./cookie");
+    let verify: typeof import("./verify");
+    let fingerprint: typeof import("../fingerprint");
+    let nextHeaders: typeof import("next/headers");
+    let client: typeof import("../client");
+    const setCookie = vi.fn();
+
+    const passkeyCommand = {
+      email: "person@example.com",
+      firstName: "Erika",
+      lastName: "Mustermann",
+      organization: ORG_ID,
+      requestId: "oidc_request",
+    };
+
+    function closedWithPasskeys(overrides: Record<string, unknown> = {}) {
+      vi.mocked(zitadel.getLoginSettings).mockResolvedValue({
+        allowRegister: false,
+        allowExternalIdp: true,
+        allowLocalAuthentication: true,
+        passkeysType: PasskeysType.ALLOWED,
+        ...overrides,
+      } as any);
+    }
+
+    beforeEach(async () => {
+      cookie = await import("./cookie");
+      verify = await import("./verify");
+      fingerprint = await import("../fingerprint");
+      nextHeaders = await import("next/headers");
+      client = await import("../client");
+
+      vi.stubEnv("PASSKEY_REGISTRATION", "true");
+      vi.stubEnv("EMAIL_VERIFICATION", "true");
+      closedWithPasskeys();
+      vi.mocked(zitadel.addHumanUser).mockResolvedValue({ userId: "user-1" } as any);
+      vi.mocked(cookie.createSessionAndUpdateCookie).mockResolvedValue({ session } as any);
+      vi.mocked(nextHeaders.cookies).mockResolvedValue({ set: setCookie } as any);
+      vi.mocked(fingerprint.getOrSetFingerprintId).mockResolvedValue("user-agent-1");
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    test("creates the account without a password and sends the person to set up the passkey", async () => {
+      const result = await registerUser(passkeyCommand);
+
+      expect(zitadel.addHumanUser).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "person@example.com", password: undefined, organization: ORG_ID }),
+      );
+      expect(cookie.createSessionAndUpdateCookie).toHaveBeenCalledWith({
+        checks: { user: { search: { case: "userId", value: "user-1" } } },
+        requestId: "oidc_request",
+        lifetime: undefined,
+      });
+
+      const url = new URL((result as { redirect: string }).redirect, "https://login.example.com");
+      expect(url.pathname).toBe("/passkey/set");
+      expect(url.searchParams.get("loginName")).toBe("person@example.com");
+      expect(url.searchParams.get("organization")).toBe(ORG_ID);
+      expect(url.searchParams.get("requestId")).toBe("oidc_request");
+    });
+
+    test("leaves the verification cookie /passkey/set accepts for an account without a way to sign in", async () => {
+      await registerUser(passkeyCommand);
+
+      expect(setCookie).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "verificationCheck", httpOnly: true, path: "/", maxAge: 300 }),
+      );
+    });
+
+    test("sends no code yet, the sign-in with the new passkey sends it once", async () => {
+      const result = await registerUser(passkeyCommand);
+
+      expect((result as { redirect: string }).redirect).toMatch(/^\/passkey\/set\?/);
+      expect(verify.trySendVerification).not.toHaveBeenCalled();
+      expect(client.completeFlowOrGetUrl).not.toHaveBeenCalled();
+    });
+
+    test("refuses a password, whatever the client sends", async () => {
+      const result = await registerUser({ ...passkeyCommand, password: "Secret-Passw0rd" });
+
+      expect(result).toEqual({ error: "errors.registerNotAllowed" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("refuses when the login policy of the organization does not allow passkeys", async () => {
+      closedWithPasskeys({ passkeysType: PasskeysType.NOT_ALLOWED });
+
+      const result = await registerUser(passkeyCommand);
+
+      expect(result).toEqual({ error: "errors.registerNotAllowed" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("stays closed without PASSKEY_REGISTRATION, as before", async () => {
+      vi.stubEnv("PASSKEY_REGISTRATION", "");
+
+      const result = await registerUser(passkeyCommand);
+
+      expect(result).toEqual({ error: "errors.registerNotAllowed" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("stays closed while EMAIL_VERIFICATION is not true, since no code would be asked for", async () => {
+      vi.stubEnv("EMAIL_VERIFICATION", "false");
+
+      const result = await registerUser(passkeyCommand);
+
+      expect(result).toEqual({ error: "errors.registerNotAllowed" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("keeps upstream's registration with a password while self-registration is open", async () => {
+      closedWithPasskeys({ allowRegister: true });
+      vi.mocked(zitadel.getUserByID).mockResolvedValue(newUser(true) as any);
+      vi.mocked(client.completeFlowOrGetUrl).mockResolvedValue({ redirect: "https://wiki.example.com/callback" });
+
+      const result = await registerUser({ ...passkeyCommand, password: "Secret-Passw0rd" });
+
+      expect(result).toEqual({ redirect: "https://wiki.example.com/callback" });
+      expect(zitadel.addHumanUser).toHaveBeenCalledWith(expect.objectContaining({ password: "Secret-Passw0rd" }));
+    });
   });
 });
