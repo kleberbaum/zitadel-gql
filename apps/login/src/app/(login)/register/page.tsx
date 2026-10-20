@@ -100,18 +100,24 @@ export default async function Page(props: { searchParams: Promise<Record<string 
           </Alert>
         )}
 
-        {legal && passwordComplexitySettings && organization && loginSettings.allowLocalAuthentication && (
-          <RegisterForm
-            idpCount={!loginSettings?.allowExternalIdp ? 0 : identityProviders.length}
-            legal={legal}
-            organization={organization}
-            firstname={firstname}
-            lastname={lastname}
-            email={email}
-            requestId={requestId}
-            loginSettings={loginSettings}
-          ></RegisterForm>
-        )}
+        {/* The local form only when self-registration is open. With it closed, the
+            buttons of the identity providers that allow creation are the only way. */}
+        {legal &&
+          passwordComplexitySettings &&
+          organization &&
+          loginSettings.allowRegister &&
+          loginSettings.allowLocalAuthentication && (
+            <RegisterForm
+              idpCount={!loginSettings?.allowExternalIdp ? 0 : identityProviders.length}
+              legal={legal}
+              organization={organization}
+              firstname={firstname}
+              lastname={lastname}
+              email={email}
+              requestId={requestId}
+              loginSettings={loginSettings}
+            ></RegisterForm>
+          )}
 
         {loginSettings?.allowExternalIdp && !!identityProviders.length && (
           <>
