@@ -75,11 +75,11 @@ README.zitadel.md the upstream's README, kept for the lineage
 
 ## Login v2 against upstream
 
-`apps/login` differs from upstream in five places. Together they let an
+`apps/login` differs from upstream in six places. Together they let an
 identity provider that allows creation register people while the password
 self-registration of the organization stays closed, as the v1 login does,
-they make the email code part of such a registration, and they let a
-provider that sends no user name be linked at all.
+they make the email code part of such a registration, and they let an
+existing account link such a provider.
 
 1. `registerUserAndLinkToIDP` registers when the organization allows
    external identity providers and either self-registration is open or the
@@ -99,6 +99,9 @@ provider that sends no user name be linked at all.
    for ID Austria sends none) is named by the username of the account,
    since user/v2 `AddIDPLink` refuses a link without a user name. This
    holds for registration, explicit linking and auto-linking alike.
+6. `/authenticator/set`, the only place where an existing account links a
+   provider, accepts a valid session besides the recent verification it
+   asked for, so a user who just signed in with a password can add one.
 
 The workspace pins `@bufbuild/protobuf` to one version in
 `pnpm-workspace.yaml`. Two copies make the Connect transport of the login
