@@ -47,3 +47,9 @@ overrides:
   "@babel/core@<=7.29.0": "^7.29.6"
   "@opentelemetry/core@<2.8.0": "^2.8.0"
 
+  # One copy of the protobuf runtime for the whole workspace. Two copies make
+  # the Connect Transport of apps/login (resolved against 2.13.0) a different
+  # type from the one @zitadel/client expects (2.12.0), and the login build
+  # fails its type check in src/lib/self.ts. 2.12.0 is the version the code
+  # generator @bufbuild/protoc-gen-es pins as its peer and apps/graphql pins.
+  "@bufbuild/protobuf": "2.12.0"
