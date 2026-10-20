@@ -73,6 +73,34 @@ apps/api          the engine (Zitadel), vendored, unchanged where possible
 README.zitadel.md the upstream's README, kept for the lineage
 ```
 
+## Login v2 against upstream
+
+`apps/login` differs from upstream in four places. Together they let an
+identity provider that allows creation register people while the password
+self-registration of the organization stays closed, as the v1 login does,
+and they make the email code part of such a registration.
+
+1. `registerUserAndLinkToIDP` registers when the organization allows
+   external identity providers and either self-registration is open or the
+   provider allows creation or auto creation. The provider is read from
+   Zitadel by its id and has to be active on the organization's login
+   policy. The password registration still requires self-registration.
+2. After such a registration the email verification check runs before the
+   MFA checks, so the person is asked for the code at once. The code is
+   sent once, by that check.
+3. The complete-registration page and its server action read the names and
+   the external identity from the IdP intent instead of the query string
+   and the form. Names the provider sent are shown read only, only the
+   email address is entered, and a link whose provider sends no user name
+   is named by that address.
+4. The register page shows the local form only while self-registration is
+   open, otherwise just the buttons of the providers that allow creation.
+
+The workspace pins `@bufbuild/protobuf` to one version in
+`pnpm-workspace.yaml`. Two copies make the Connect transport of the login
+a different type from the one `@zitadel/client` expects, and the login
+build fails its type check.
+
 ## Running it
 
 ```
