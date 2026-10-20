@@ -1,10 +1,20 @@
 "use server";
 
 import { createSessionAndUpdateCookie, createSessionForIdpAndUpdateCookie } from "@/lib/server/cookie";
-import { addHumanUser, addIDPLink, getLoginSettings, getUserByID, listAuthenticationMethodTypes } from "@/lib/zitadel";
-import { Code, ConnectError, Duration, create } from "@zitadel/client";
+import {
+  addHumanUser,
+  addIDPLink,
+  getActiveIdentityProviders,
+  getIDPByID,
+  getLoginSettings,
+  getUserByID,
+  listAuthenticationMethodTypes,
+  ServiceConfig,
+} from "@/lib/zitadel";
+import { Code, ConnectError, create, Duration } from "@zitadel/client";
 import { Factors } from "@zitadel/proto/zitadel/session/v2/session_pb";
 import { Checks, ChecksJson, ChecksSchema } from "@zitadel/proto/zitadel/session/v2/session_service_pb";
+import { LoginSettings } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import { cookies, headers } from "next/headers";
@@ -209,6 +219,52 @@ export type registerUserAndLinkToIDPResponse = {
   sessionId: string;
   factors: Factors | undefined;
 };
+
+/**
+ * Whether a person may create an account through an identity provider while
+ * signing in with it. Login V1 allows this whenever the provider allows
+ * creation, even with the password self-registration of the organization
+ * closed, and so does this check. The provider is read from Zitadel by its id,
+ * its options are never taken from the client, and it has to be active on the
+ * login policy of the organization the account is created in.
+ */
+async function isIDPRegistrationAllowed({
+  serviceConfig,
+  loginSettings,
+  organization,
+  idpId,
+}: {
+  serviceConfig: ServiceConfig;
+  loginSettings: LoginSettings;
+  organization: string;
+  idpId: string;
+}): Promise<boolean> {
+  if (!loginSettings.allowExternalIdp) {
+    return false;
+  }
+
+  if (loginSettings.allowRegister) {
+    return true;
+  }
+
+  const idp = await getIDPByID({ serviceConfig, id: idpId }).catch((error) => {
+    logger.error("Failed to read the identity provider", { error });
+    return undefined;
+  });
+
+  const options = idp?.config?.options;
+  if (!options?.isCreationAllowed && !options?.isAutoCreation) {
+    return false;
+  }
+
+  const activeIDPs = await getActiveIdentityProviders({ serviceConfig, orgId: organization }).catch((error) => {
+    logger.error("Failed to read the active identity providers", { error });
+    return undefined;
+  });
+
+  return !!activeIDPs?.identityProviders?.some((activeIDP) => activeIDP.id === idpId);
+}
+
 export async function registerUserAndLinkToIDP(
   command: RegisterUserAndLinkToIDPommand,
 ): Promise<{ error: string } | { redirect: string } | { samlData: { url: string; fields: Record<string, string> } }> {
@@ -223,7 +279,14 @@ export async function registerUserAndLinkToIDP(
     return { error: t("errors.couldNotGetLoginSettings") };
   }
 
-  if (!loginSettings.allowRegister) {
+  const registrationAllowed = await isIDPRegistrationAllowed({
+    serviceConfig,
+    loginSettings,
+    organization: command.organization,
+    idpId: command.idpId,
+  });
+
+  if (!registrationAllowed) {
     return { error: t("errors.registerNotAllowed") };
   }
 

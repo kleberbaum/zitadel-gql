@@ -353,7 +353,9 @@
       "couldNotCreateSession": "Could not create session",
       "userNotFound": "User not found in the system",
       "couldNotLinkIDP": "Could not link IDP to user",
-      "couldNotRegisterUser": "Could not register user"
+      "couldNotRegisterUser": "Could not register user",
+      "couldNotGetLoginSettings": "Could not get login settings",
+      "registerNotAllowed": "Registration is not allowed. Please contact your administrator."
     }
   },
   "invite": {

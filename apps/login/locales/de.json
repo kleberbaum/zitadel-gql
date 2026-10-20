@@ -353,7 +353,9 @@
       "couldNotCreateSession": "Sitzung konnte nicht erstellt werden",
       "userNotFound": "Benutzer nicht im System gefunden",
       "couldNotLinkIDP": "IDP konnte nicht mit dem Benutzer verknüpft werden",
-      "couldNotRegisterUser": "Benutzer konnte nicht registriert werden"
+      "couldNotRegisterUser": "Benutzer konnte nicht registriert werden",
+      "couldNotGetLoginSettings": "Anmeldeeinstellungen konnten nicht abgerufen werden",
+      "registerNotAllowed": "Die Registrierung ist nicht erlaubt. Bitte wenden Sie sich an den Administrator."
     }
   },
   "invite": {
