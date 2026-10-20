@@ -1,4 +1,5 @@
 import "@/styles/globals.scss";
+import "@/styles/walther.scss";
 
 import { BackgroundWrapper } from "@/components/background-wrapper";
 import { LanguageProvider } from "@/components/language-provider";

@@ -56,6 +56,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
+          "ztdl-card", // hook for a look selected with LOGIN_THEME (src/styles/walther.scss)
           actualBackground,
           actualCardStyling,
           actualPadding,

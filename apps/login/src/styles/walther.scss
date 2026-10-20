@@ -1,0 +1,408 @@
+// The Walther look of the login: Login V2 dressed like the Walther wiki of
+// the University of Vienna (walther.exp.univie.ac.at), with the wiki's font,
+// colours, radii, shadows, buttons and inputs, in light and dark mode.
+//
+// Every rule sits below html[data-login-theme="walther"], which the root
+// layout sets only when LOGIN_THEME=walther (src/lib/login-theme.ts), so this
+// file leaves upstream's look untouched. It is plain CSS outside Tailwind's
+// cascade layers, and unlayered rules outrank the layered utilities of the
+// components without any specificity games. The components carry the hook
+// classes it styles (ztdl-card, ztdl-button, ztdl-input, ztdl-idp-button).
+//
+// The values are the wiki's own, read off its Chakra theme (colors.ts,
+// system.ts, recipes.ts and the semantic tokens below src/styles/theme in the
+// walther-wiki repository) and off the live site.
+
+@use "sass:list";
+@use "sass:map";
+
+// The wiki's scales. gray is Chakra v2's blue-tinted ramp, which the wiki pins
+// together with its two extra steps 550 and 750.
+$brand: (
+  50: #e5f5ff,
+  100: #b8e2ff,
+  200: #8ad0ff,
+  300: #5cbdff,
+  400: #2eabff,
+  500: #0063a6,
+  600: #015e9d,
+  700: #005b99,
+  800: #003d66,
+  900: #001e33,
+);
+
+$gray: (
+  50: #f7fafc,
+  100: #edf2f7,
+  200: #e2e8f0,
+  300: #cbd5e0,
+  400: #a0aec0,
+  500: #718096,
+  550: #5f6c81,
+  600: #4a5568,
+  700: #2d3748,
+  750: #212836,
+  800: #1a202c,
+  900: #171923,
+);
+
+$red: (
+  50: #ffe7e5,
+  100: #ffbbb8,
+  200: #ff908a,
+  300: #ff655c,
+  400: #ff392e,
+  500: #ff0d00,
+  600: #cc0b00,
+  700: #990800,
+  800: #660600,
+  900: #330300,
+);
+
+$white: #ffffff;
+$black: #000000;
+
+// Text and its quiet variant, as the wiki's body and its `shared.text.muted`.
+$text-light: map.get($gray, 800);
+$text-dark: rgb(255 255 255 / 92%);
+$muted-light: map.get($gray, 600);
+$muted-dark: map.get($gray, 400);
+
+// The wiki's font: Chakra v2's system stack for body and headings. The wiki
+// loads no webfont, so neither does this look.
+$font:
+  -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+  "Segoe UI Symbol";
+
+// Chakra v3's `lg` shadow in both modes, which the wiki's panels wear.
+$shadow-light:
+  0 8px 16px rgb(23 25 35 / 10%),
+  0 0 1px rgb(23 25 35 / 30%);
+$shadow-dark:
+  0 8px 16px rgb(0 0 0 / 64%),
+  inset 0 0 1px rgb(203 213 224 / 30%);
+
+$shades: 50, 100, 200, 300, 400, 500, 600, 700, 800, 900;
+
+// Upstream's components take their colours from the variables
+// --theme-<mode>-<type>-<shade> (tailwind.config.mjs). ThemeWrapper computes
+// them from the organization's branding settings and sets them inline on
+// <html>. Declared here with !important, which outranks a normal inline
+// declaration, the wiki's colours win in this look whatever the branding says.
+//
+// Upstream reads these scales by role rather than as ramps: the page is
+// background 600, the card background 500, the tiles inside the card and the
+// small controls background 400, buttons and links primary 500, hover
+// states primary 400.
+// The maps below fill those roles with the wiki's colours. $on-white names the
+// shades whose contrast colour is white, the others take the wiki's dark text.
+@mixin palette($mode, $type, $colors, $on-white, $secondary: null) {
+  @each $shade in $shades {
+    --theme-#{$mode}-#{$type}-#{$shade}: #{map.get($colors, $shade)} !important;
+    @if list.index($on-white, $shade) {
+      --theme-#{$mode}-#{$type}-contrast-#{$shade}: #{$white} !important;
+    } @else {
+      --theme-#{$mode}-#{$type}-contrast-#{$shade}: #{$text-light} !important;
+    }
+    @if $secondary {
+      --theme-#{$mode}-#{$type}-secondary-#{$shade}: #{$secondary} !important;
+    }
+  }
+}
+
+$dark-shades: 500, 600, 700, 800, 900;
+
+// Light mode. The page and the card are white, as the wiki's pages and
+// panels are, and only the card's shadow sets it off. The tiles inside it
+// take the wiki's lightest grey.
+$light-background: (
+  50: $white,
+  100: $white,
+  200: $white,
+  300: $white,
+  400: map.get($gray, 50),
+  500: $white,
+  600: $white,
+  700: map.get($gray, 100),
+  800: map.get($gray, 200),
+  900: map.get($gray, 300),
+);
+
+// Errors one step darker than the wiki's red.500, which reads only 4.0:1 on
+// white. red.600 reads 5.8:1.
+$light-warn: (
+  50: map.get($red, 50),
+  100: map.get($red, 100),
+  200: map.get($red, 200),
+  300: map.get($red, 300),
+  400: map.get($red, 500),
+  500: map.get($red, 600),
+  600: map.get($red, 700),
+  700: map.get($red, 800),
+  800: map.get($red, 900),
+  900: map.get($red, 900),
+);
+
+$light-text: (
+  50: map.get($gray, 400),
+  100: map.get($gray, 500),
+  200: map.get($gray, 550),
+  300: map.get($gray, 600),
+  400: map.get($gray, 700),
+  500: $text-light,
+  600: map.get($gray, 900),
+  700: map.get($gray, 900),
+  800: $black,
+  900: $black,
+);
+
+// Dark mode. The page is the wiki's gray.800, the card one step lighter and
+// the tiles inside it one more, the order upstream's components expect.
+$dark-background: (
+  50: map.get($gray, 400),
+  100: map.get($gray, 500),
+  200: map.get($gray, 550),
+  300: map.get($gray, 600),
+  400: map.get($gray, 700),
+  500: map.get($gray, 750),
+  600: map.get($gray, 800),
+  700: map.get($gray, 900),
+  800: #111111,
+  900: #0a0a0a,
+);
+
+// Shifted one step lighter, so that primary 500, which upstream uses for
+// links and focus borders as well, is the wiki's brand text colour in dark
+// mode, brand.400 at 6.5:1 on the page. The buttons keep brand.500 through
+// .ztdl-button-primary below, as on the wiki.
+$dark-primary: (
+  50: map.get($brand, 50),
+  100: map.get($brand, 50),
+  200: map.get($brand, 100),
+  300: map.get($brand, 200),
+  400: map.get($brand, 300),
+  500: map.get($brand, 400),
+  600: map.get($brand, 500),
+  700: map.get($brand, 600),
+  800: map.get($brand, 700),
+  900: map.get($brand, 800),
+);
+
+$dark-warn: (
+  50: map.get($red, 50),
+  100: map.get($red, 50),
+  200: map.get($red, 50),
+  300: map.get($red, 100),
+  400: map.get($red, 200),
+  500: map.get($red, 300),
+  600: map.get($red, 400),
+  700: map.get($red, 500),
+  800: map.get($red, 600),
+  900: map.get($red, 700),
+);
+
+$dark-text: (
+  50: map.get($gray, 700),
+  100: map.get($gray, 600),
+  200: map.get($gray, 550),
+  300: map.get($gray, 500),
+  400: map.get($gray, 400),
+  500: $text-dark,
+  600: $white,
+  700: $white,
+  800: $white,
+  900: $white,
+);
+
+html[data-login-theme="walther"] {
+  @include palette(light, background, $light-background, ());
+  @include palette(light, primary, $brand, $dark-shades);
+  @include palette(light, warn, $light-warn, (400, 500, 600, 700, 800, 900));
+  @include palette(light, text, $light-text, (300, 400, 500, 600, 700, 800, 900), $muted-light);
+  @include palette(light, link, $brand, $dark-shades, map.get($brand, 600));
+
+  @include palette(dark, background, $dark-background, (200, 300, 400, 500, 600, 700, 800, 900));
+  @include palette(dark, primary, $dark-primary, (600, 700, 800, 900));
+  @include palette(dark, warn, $dark-warn, (600, 700, 800, 900));
+  @include palette(dark, text, $dark-text, (50, 100, 200, 300), $muted-dark);
+  @include palette(dark, link, $dark-primary, (600, 700, 800, 900), map.get($brand, 300));
+
+  // !important outranks the inline font ThemeWrapper sets for a branding font.
+  font-family: $font !important;
+  background-color: $white;
+  color: $text-light;
+
+  // Tailwind's radius scale. md carries the buttons, inputs and small
+  // controls, lg the cards. The wiki draws buttons and controls at 12px.
+  --radius-md: 0.75rem;
+  --radius-lg: 0.75rem;
+
+  &.dark {
+    background-color: map.get($gray, 800);
+    color: $text-dark;
+  }
+
+  h1,
+  .ztdl-h1 {
+    font-weight: 700;
+  }
+
+  .ztdl-card {
+    border-color: map.get($gray, 200);
+    box-shadow: $shadow-light;
+  }
+
+  &.dark .ztdl-card {
+    border-color: rgb(255 255 255 / 6%);
+    box-shadow: $shadow-dark;
+  }
+
+  // Buttons as the wiki's solid and outline buttons: 40px high, 20px to the
+  // side, semibold, 12px corners from --radius-md.
+  .ztdl-button,
+  .ztdl-idp-button {
+    font-weight: 600;
+
+    &:focus-visible {
+      outline: 2px solid map.get($brand, 500);
+      outline-offset: 2px;
+    }
+  }
+
+  &.dark :is(.ztdl-button, .ztdl-idp-button):focus-visible {
+    outline-color: map.get($brand, 200);
+  }
+
+  .ztdl-button {
+    height: 2.5rem;
+    padding-inline: 1.25rem;
+  }
+
+  .ztdl-button-primary {
+    border-color: transparent;
+    background-color: map.get($brand, 500);
+    color: $white;
+
+    &:hover:not(:disabled) {
+      background-color: map.get($brand, 400);
+    }
+
+    &:disabled {
+      background-color: map.get($brand, 500);
+      color: $white;
+      opacity: 0.5;
+    }
+  }
+
+  &.dark .ztdl-button-primary:hover:not(:disabled) {
+    background-color: map.get($brand, 300);
+  }
+
+  // The secondary buttons and the identity provider buttons as the wiki's
+  // outline buttons, a brand border and brand text on the card.
+  .ztdl-button-secondary,
+  .ztdl-idp-button {
+    border-color: map.get($brand, 500);
+    background-color: transparent;
+    color: map.get($brand, 600);
+    box-shadow: none;
+
+    &:hover:not(:disabled) {
+      border-color: map.get($brand, 500);
+      background-color: map.get($brand, 50);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  // The wiki draws this border in brand.800, which all but vanishes on the
+  // card, so the login takes the next lighter step.
+  &.dark :is(.ztdl-button-secondary, .ztdl-idp-button) {
+    border-color: map.get($brand, 700);
+    color: map.get($brand, 200);
+
+    &:hover:not(:disabled) {
+      border-color: map.get($brand, 700);
+      background-color: map.get($brand, 900);
+    }
+  }
+
+  .ztdl-idp-button {
+    font-size: 1rem;
+  }
+
+  // Inputs as the wiki's: a quiet border that turns brand blue with a ring
+  // on focus, and the wiki's error red while the field has an error.
+  .ztdl-input {
+    padding-inline: 0.75rem;
+    border-color: map.get($gray, 300);
+    background-color: transparent;
+
+    &:not(:disabled, [readonly]) {
+      color: $text-light;
+    }
+
+    &:hover {
+      border-color: map.get($gray, 400);
+    }
+
+    &:focus {
+      border-color: map.get($brand, 500);
+      box-shadow: 0 0 0 1px map.get($brand, 500);
+    }
+
+    &[aria-invalid="true"] {
+      border-color: var(--theme-light-warn-500);
+    }
+
+    &[aria-invalid="true"]:focus {
+      box-shadow: 0 0 0 1px var(--theme-light-warn-500);
+    }
+
+    &:is(:disabled, [readonly]) {
+      background-color: map.get($gray, 50);
+      color: map.get($gray, 600);
+    }
+
+    &::placeholder {
+      font-style: normal;
+      color: map.get($gray, 500);
+    }
+  }
+
+  &.dark .ztdl-input {
+    border-color: rgb(255 255 255 / 24%);
+
+    &:not(:disabled, [readonly]) {
+      color: $text-dark;
+    }
+
+    &:hover {
+      border-color: rgb(255 255 255 / 36%);
+    }
+
+    &:focus {
+      border-color: map.get($brand, 200);
+      box-shadow: 0 0 0 1px map.get($brand, 200);
+    }
+
+    &[aria-invalid="true"] {
+      border-color: var(--theme-dark-warn-500);
+    }
+
+    &[aria-invalid="true"]:focus {
+      box-shadow: 0 0 0 1px var(--theme-dark-warn-500);
+    }
+
+    &:is(:disabled, [readonly]) {
+      background-color: rgb(255 255 255 / 4%);
+      color: map.get($gray, 400);
+    }
+
+    &::placeholder {
+      color: map.get($gray, 500);
+    }
+  }
+}

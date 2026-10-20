@@ -21,6 +21,8 @@ export type TextInputProps = DetailedHTMLProps<InputHTMLAttributes<HTMLInputElem
 const styles = (error: boolean, disabled: boolean, roundnessClasses: string = "rounded-md") =>
   clsx(
     {
+      // hook for a look selected with LOGIN_THEME (src/styles/walther.scss)
+      "ztdl-input": true,
       "h-[40px] mb-[2px] p-[7px] bg-input-light-background dark:bg-input-dark-background transition-colors duration-300 grow": true,
       "border border-input-light-border dark:border-input-dark-border hover:border-black hover:dark:border-white focus:border-primary-light-500 focus:dark:border-primary-dark-500": true,
       "focus:outline-none focus:ring-0 text-base text-black dark:text-white placeholder:italic placeholder-gray-700 dark:placeholder-gray-700": true,
@@ -70,6 +72,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           suppressHydrationWarning
           ref={ref}
           className={styles(!!error, looksDisabled, actualRoundness)}
+          aria-invalid={error ? true : undefined}
           defaultValue={defaultValue}
           required={required}
           disabled={disabled}

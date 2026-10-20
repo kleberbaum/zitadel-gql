@@ -35,6 +35,10 @@ export const getButtonClasses = (
 ) =>
   clsx(
     {
+      // hooks for a look selected with LOGIN_THEME (src/styles/walther.scss)
+      "ztdl-button": true,
+      "ztdl-button-primary": variant === ButtonVariants.Primary && color !== ButtonColors.Warn,
+      "ztdl-button-secondary": variant === ButtonVariants.Secondary && color !== ButtonColors.Warn,
       "box-border leading-36px text-14px inline-flex items-center focus:outline-none transition-colors transition-shadow duration-300": true,
       "disabled:border-none disabled:bg-gray-300 disabled:text-gray-600 disabled:shadow-none disabled:cursor-not-allowed disabled:dark:bg-gray-700 disabled:dark:text-gray-900":
         variant === ButtonVariants.Primary,

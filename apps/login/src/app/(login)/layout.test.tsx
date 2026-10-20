@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import RootLayout from "./layout";
 
 vi.mock("@/styles/globals.scss", () => ({}));
+vi.mock("@/styles/walther.scss", () => ({}));
 
 vi.mock("next/font/google", () => ({
   Lato: () => ({ className: "lato" }),
