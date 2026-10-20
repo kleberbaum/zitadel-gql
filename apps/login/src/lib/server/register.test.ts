@@ -224,21 +224,14 @@ describe("registerUserAndLinkToIDP", () => {
   });
 
   describe("the email code right after the registration (P2)", () => {
-    let savedEmailVerification: string | undefined;
-
     beforeEach(() => {
-      savedEmailVerification = process.env.EMAIL_VERIFICATION;
-      process.env.EMAIL_VERIFICATION = "true";
+      vi.stubEnv("EMAIL_VERIFICATION", "true");
       vi.mocked(verify.trySendVerification).mockResolvedValue(true);
       vi.mocked(mfaHelper.checkMFAFactors).mockResolvedValue({ redirect: "/mfa/set?force=true" });
     });
 
     afterEach(() => {
-      if (savedEmailVerification === undefined) {
-        delete process.env.EMAIL_VERIFICATION;
-      } else {
-        process.env.EMAIL_VERIFICATION = savedEmailVerification;
-      }
+      vi.unstubAllEnvs();
     });
 
     test("sends the first code once and asks for it before any MFA step", async () => {
@@ -284,7 +277,7 @@ describe("registerUserAndLinkToIDP", () => {
     });
 
     test("asks for no code when EMAIL_VERIFICATION is not true", async () => {
-      process.env.EMAIL_VERIFICATION = "false";
+      vi.stubEnv("EMAIL_VERIFICATION", "false");
 
       const result = await registerUserAndLinkToIDP(idpCommand);
 
