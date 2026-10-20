@@ -2,10 +2,12 @@ import { Alert } from "@/components/alert";
 import { BackButton } from "@/components/back-button";
 import { ChooseAuthenticatorToSetup } from "@/components/choose-authenticator-to-setup";
 import { DynamicTheme } from "@/components/dynamic-theme";
+import { LinkIdentityProviders } from "@/components/link-identity-providers";
 import { SignInWithIdp } from "@/components/sign-in-with-idp";
 import { Translated } from "@/components/translated";
 import { UserAvatar } from "@/components/user-avatar";
 import { getSessionCookieById } from "@/lib/cookies";
+import { createLogger } from "@/lib/logger";
 import { getServiceConfig } from "@/lib/service-url";
 import { isSessionValid, loadMostRecentSession } from "@/lib/session";
 import { checkUserVerification } from "@/lib/verify-helper";
@@ -16,6 +18,7 @@ import {
   getSession,
   getUserByID,
   listAuthenticationMethodTypes,
+  listIDPLinks,
 } from "@/lib/zitadel";
 import { Session } from "@zitadel/proto/zitadel/session/v2/session_pb";
 // import { getLocale } from "next-intl/server";
@@ -23,6 +26,8 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+const logger = createLogger("authenticator-set");
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("authenticator");
@@ -136,6 +141,25 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     linking_allowed: true,
   });
 
+  // An account with an authenticator can sign in already. For it the page
+  // only links identity providers, and it names the providers the account is
+  // linked with instead of offering them again.
+  const hasAuthenticator = sessionWithData.authMethods.length !== 0;
+  const linkableIdps = loginSettings?.allowExternalIdp ? identityProviders : [];
+
+  let linkedIdpIds: string[] = [];
+  if (hasAuthenticator && linkableIdps.length) {
+    try {
+      const { result } = await listIDPLinks({ serviceConfig, userId: sessionWithData.factors.user.id });
+      linkedIdpIds = result.map((link) => link.idpId);
+    } catch (error) {
+      // Without the links every provider stays on offer, as upstream has it.
+      logger.warn("Could not list the identity provider links of the user", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const params = new URLSearchParams({
     initial: "true", // defines that a code is not required and is therefore not shown in the UI
   });
@@ -172,7 +196,17 @@ export default async function Page(props: { searchParams: Promise<Record<string 
       </div>
 
       <div className="w-full">
-        {loginSettings && (
+        {hasAuthenticator && (
+          <LinkIdentityProviders
+            identityProviders={linkableIdps}
+            linkedIdpIds={linkedIdpIds}
+            requestId={requestId}
+            organization={sessionWithData.factors?.user?.organizationId}
+            sessionId={sessionWithData.id}
+          />
+        )}
+
+        {loginSettings && !hasAuthenticator && (
           <ChooseAuthenticatorToSetup
             authMethods={sessionWithData.authMethods}
             loginSettings={loginSettings}
@@ -180,7 +214,7 @@ export default async function Page(props: { searchParams: Promise<Record<string 
           ></ChooseAuthenticatorToSetup>
         )}
 
-        {loginSettings?.allowExternalIdp && !!identityProviders.length && (
+        {!hasAuthenticator && loginSettings?.allowExternalIdp && !!identityProviders.length && (
           <>
             <div className="flex flex-col py-3">
               <p className="ztdl-p text-center">

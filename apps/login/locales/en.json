@@ -423,7 +423,13 @@
     "description": "Select the method you would like to authenticate",
     "noMethodsAvailable": "No authentication methods available",
     "allSetup": "You have already setup an authenticator!",
-    "linkWithIDP": "or link with an Identity Provider"
+    "linkWithIDP": "or link with an Identity Provider",
+    "accountReady": "Your account is set up. You can already sign in with it.",
+    "alreadyLinked": "Your account is already linked with {provider}.",
+    "linkIdpTitle": "Link your account with {provider}",
+    "linkIdpTitleMultiple": "Link your account with an identity provider",
+    "linkIdpDescription": "Afterwards you can also sign in with {provider}.",
+    "linkIdpDescriptionMultiple": "Afterwards you can also sign in with that provider."
   },
   "device": {
     "usercode": {

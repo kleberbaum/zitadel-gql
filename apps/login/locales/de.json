@@ -423,7 +423,13 @@
     "description": "Wählen Sie die Methode, mit der Sie sich authentifizieren möchten.",
     "noMethodsAvailable": "Keine Authentifizierungsmethoden verfügbar",
     "allSetup": "Sie haben bereits einen Authentifikator eingerichtet!",
-    "linkWithIDP": "oder verknüpfe mit einem Identitätsanbieter"
+    "linkWithIDP": "oder verknüpfe mit einem Identitätsanbieter",
+    "accountReady": "Ihr Konto ist eingerichtet. Sie können sich damit bereits anmelden.",
+    "alreadyLinked": "Ihr Konto ist bereits mit {provider} verknüpft.",
+    "linkIdpTitle": "Konto mit {provider} verknüpfen",
+    "linkIdpTitleMultiple": "Konto mit einem Identitätsanbieter verknüpfen",
+    "linkIdpDescription": "Danach können Sie sich auch mit {provider} anmelden.",
+    "linkIdpDescriptionMultiple": "Danach können Sie sich auch mit diesem Anbieter anmelden."
   },
   "device": {
     "usercode": {

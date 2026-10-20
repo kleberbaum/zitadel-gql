@@ -1,3 +1,4 @@
+import { LinkIdentityProviders } from "@/components/link-identity-providers";
 import { SignInWithIdp } from "@/components/sign-in-with-idp";
 import { isSessionValid, loadMostRecentSession } from "@/lib/session";
 import { checkUserVerification } from "@/lib/verify-helper";
@@ -7,8 +8,10 @@ import {
   getLoginSettings,
   getUserByID,
   listAuthenticationMethodTypes,
+  listIDPLinks,
 } from "@/lib/zitadel";
 import { cleanup, render } from "@testing-library/react";
+import { AuthenticationMethodType } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 import { redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import Page from "./page";
@@ -51,6 +54,11 @@ vi.mock("@/lib/zitadel", () => ({
   getSession: vi.fn(),
   getUserByID: vi.fn(),
   listAuthenticationMethodTypes: vi.fn(),
+  listIDPLinks: vi.fn(),
+}));
+
+vi.mock("@/lib/logger", () => ({
+  createLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
 
 vi.mock("@/components/dynamic-theme", () => ({
@@ -79,6 +87,10 @@ vi.mock("@/components/choose-authenticator-to-setup", () => ({
 
 vi.mock("@/components/sign-in-with-idp", () => ({
   SignInWithIdp: vi.fn(() => <div data-testid="sign-in-with-idp" />),
+}));
+
+vi.mock("@/components/link-identity-providers", () => ({
+  LinkIdentityProviders: vi.fn(() => <div data-testid="link-identity-providers" />),
 }));
 
 const session = {
@@ -149,5 +161,92 @@ describe("authenticator set page", () => {
     expect(target.pathname).toBe("/verify");
     expect(target.searchParams.get("loginName")).toBe("erika@example.com");
     expect(SignInWithIdp).not.toHaveBeenCalled();
+  });
+});
+
+describe("authenticator set page for an account that has an authenticator", () => {
+  beforeEach(() => {
+    vi.mocked(loadMostRecentSession).mockResolvedValue(session as any);
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({
+      authMethodTypes: [AuthenticationMethodType.PASSWORD],
+    } as any);
+    vi.mocked(getUserByID).mockResolvedValue({ user: { type: { case: "human", value: {} } } } as any);
+    vi.mocked(getBrandingSettings).mockResolvedValue(undefined as any);
+    vi.mocked(getLoginSettings).mockResolvedValue({ allowExternalIdp: true } as any);
+    vi.mocked(getActiveIdentityProviders).mockResolvedValue({
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+    } as any);
+    vi.mocked(listIDPLinks).mockResolvedValue({ result: [] } as any);
+    vi.mocked(checkUserVerification).mockResolvedValue(false);
+    vi.mocked(isSessionValid).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  test("offers to link a provider instead of warning that an authenticator exists", async () => {
+    const { getByTestId, queryByTestId, queryByRole } = await renderPage();
+
+    expect(getByTestId("link-identity-providers")).toBeInTheDocument();
+    expect(queryByTestId("choose-authenticator")).not.toBeInTheDocument();
+    expect(queryByRole("alert")).not.toBeInTheDocument();
+    expect(SignInWithIdp).not.toHaveBeenCalled();
+    expect(vi.mocked(LinkIdentityProviders).mock.calls[0][0]).toMatchObject({
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+      linkedIdpIds: [],
+      organization: "org-walther",
+      sessionId: "session-1",
+    });
+    expect(listIDPLinks).toHaveBeenCalledWith({ serviceConfig: expect.anything(), userId: "user-1" });
+  });
+
+  test("passes on the providers the account is linked with already", async () => {
+    vi.mocked(listIDPLinks).mockResolvedValue({
+      result: [{ idpId: "idp-id-austria", userId: "qes-subject", userName: "erika" }],
+    } as any);
+
+    await renderPage();
+
+    expect(vi.mocked(LinkIdentityProviders).mock.calls[0][0]).toMatchObject({
+      linkedIdpIds: ["idp-id-austria"],
+    });
+  });
+
+  test("keeps every provider on offer when the links cannot be listed", async () => {
+    vi.mocked(listIDPLinks).mockRejectedValue(new Error("permission denied"));
+
+    const { getByTestId } = await renderPage();
+
+    expect(getByTestId("link-identity-providers")).toBeInTheDocument();
+    expect(vi.mocked(LinkIdentityProviders).mock.calls[0][0]).toMatchObject({
+      identityProviders: [{ id: "idp-id-austria", name: "ID Austria" }],
+      linkedIdpIds: [],
+    });
+  });
+
+  test("offers no provider and asks for no links while external providers are off", async () => {
+    vi.mocked(getLoginSettings).mockResolvedValue({ allowExternalIdp: false } as any);
+
+    const { getByTestId } = await renderPage();
+
+    expect(getByTestId("link-identity-providers")).toBeInTheDocument();
+    expect(vi.mocked(LinkIdentityProviders).mock.calls[0][0]).toMatchObject({
+      identityProviders: [],
+      linkedIdpIds: [],
+    });
+    expect(listIDPLinks).not.toHaveBeenCalled();
+  });
+
+  test("keeps upstream's choice of authenticators for an account without one", async () => {
+    vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
+
+    const { getByTestId, queryByTestId } = await renderPage();
+
+    expect(getByTestId("choose-authenticator")).toBeInTheDocument();
+    expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
+    expect(queryByTestId("link-identity-providers")).not.toBeInTheDocument();
+    expect(listIDPLinks).not.toHaveBeenCalled();
   });
 });
