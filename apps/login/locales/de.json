@@ -174,7 +174,7 @@
     },
     "completeRegister": {
       "title": "Registrierung abschließen",
-      "description": "Bitte vervollständige die Registrierung, um dein Konto zu erstellen."
+      "description": "Bitte vervollständigen Sie die Registrierung, um Ihr Konto zu erstellen."
     },
     "accountNotFound": {
       "title": "Konto nicht gefunden",
@@ -423,7 +423,7 @@
     "description": "Wählen Sie die Methode, mit der Sie sich authentifizieren möchten.",
     "noMethodsAvailable": "Keine Authentifizierungsmethoden verfügbar",
     "allSetup": "Sie haben bereits einen Authentifikator eingerichtet!",
-    "linkWithIDP": "oder verknüpfe mit einem Identitätsanbieter",
+    "linkWithIDP": "oder verknüpfen Sie Ihr Konto mit einem Identitätsanbieter",
     "linkTitle": "Anmeldemethoden",
     "accountReady": "Ihr Konto ist eingerichtet. Sie können sich damit bereits anmelden.",
     "alreadyLinked": "Ihr Konto ist bereits mit {provider} verknüpft.",
