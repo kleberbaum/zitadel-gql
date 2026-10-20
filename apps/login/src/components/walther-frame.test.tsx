@@ -47,7 +47,7 @@ describe("<WaltherFrame />", () => {
   test("shows the University of Vienna logo for light and dark ground, linked to the wiki", async () => {
     await renderFrame("de");
 
-    const home = screen.getByRole("link", { name: "Zur Startseite des Walther Wiki" });
+    const home = screen.getByRole("link", { name: "Zur Startseite des Walther Wikis" });
     expect(home).toHaveAttribute("href", "https://walther.exp.univie.ac.at/");
 
     const logos = within(home).getAllByRole("img", { name: "Universität Wien" });

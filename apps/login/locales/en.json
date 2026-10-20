@@ -430,7 +430,7 @@
     "linkIdpTitle": "Link your account with {provider}",
     "linkIdpTitleMultiple": "Link your account with an identity provider",
     "linkIdpDescription": "Afterwards you can also sign in with {provider}.",
-    "linkIdpDescriptionMultiple": "Afterwards you can also sign in with that provider."
+    "linkIdpDescriptionMultiple": "Afterwards you can also sign in with the provider you choose."
   },
   "device": {
     "usercode": {

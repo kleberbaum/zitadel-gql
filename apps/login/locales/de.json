@@ -430,7 +430,7 @@
     "linkIdpTitle": "Konto mit {provider} verknüpfen",
     "linkIdpTitleMultiple": "Konto mit einem Identitätsanbieter verknüpfen",
     "linkIdpDescription": "Danach können Sie sich auch mit {provider} anmelden.",
-    "linkIdpDescriptionMultiple": "Danach können Sie sich auch mit diesem Anbieter anmelden."
+    "linkIdpDescriptionMultiple": "Danach können Sie sich auch mit dem gewählten Anbieter anmelden."
   },
   "device": {
     "usercode": {
@@ -468,7 +468,7 @@
     "couldNotContinueSession": "Sitzung konnte nicht fortgesetzt werden - fehlende Benutzerinformationen"
   },
   "walther": {
-    "home": "Zur Startseite des Walther Wiki",
+    "home": "Zur Startseite des Walther Wikis",
     "university": "Universität Wien",
     "legal": "Rechtliches",
     "imprint": "Impressum",

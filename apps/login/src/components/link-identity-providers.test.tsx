@@ -67,6 +67,9 @@ describe("<LinkIdentityProviders />", () => {
     renderLinking({ identityProviders: [idAustria, github], linkedIdpIds: [] });
 
     const section = screen.getByRole("region", { name: "Konto mit einem Identitätsanbieter verknüpfen" });
+    expect(
+      within(section).getByText("Danach können Sie sich auch mit dem gewählten Anbieter anmelden."),
+    ).toBeInTheDocument();
     expect(within(section).getByRole("button", { name: "ID Austria" })).toBeInTheDocument();
     expect(within(section).getByRole("button", { name: "GitHub" })).toBeInTheDocument();
   });
