@@ -48,11 +48,16 @@ function declarations(selector: string): Record<string, string> {
   );
 }
 
-/** A colour given as #rrggbb, in sRGB channels. */
-function channels(colour: string): number[] {
+/** A colour as #rrggbb, or as rgba(r, g, b, a) laid over an opaque ground, in sRGB channels. */
+function channels(colour: string, ground = "#ffffff"): number[] {
   const hex = colour.match(/^#([0-9a-f]{6})$/i);
-  expect(hex, colour).not.toBeNull();
-  return [0, 2, 4].map((i) => parseInt(hex![1].slice(i, i + 2), 16));
+  if (hex) {
+    return [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16));
+  }
+  const rgba = colour.match(/^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/);
+  expect(rgba, colour).not.toBeNull();
+  const alpha = Number(rgba![4]);
+  return channels(ground).map((under, i) => Number(rgba![i + 1]) * alpha + under * (1 - alpha));
 }
 
 /** The contrast ratio of two colours, as WCAG 2 defines it. */
@@ -69,6 +74,9 @@ function contrast(a: number[], b: number[]): number {
 }
 
 const ROOT = "html[data-login-theme=walther]";
+
+// The card the fields sit on, background 500: white, and gray.750 in dark mode.
+const CARD = { light: "#ffffff", dark: "#212836" };
 
 describe("the Walther look", () => {
   test("applies only below html[data-login-theme=walther], so upstream's look stays as it is", () => {
@@ -115,6 +123,18 @@ describe("the Walther look", () => {
     expect(selectors(css).filter((selector) => selector.includes(".ztdl-button-primary:hover"))).toEqual([
       `${ROOT} .ztdl-button-primary:hover:not(:disabled)`,
     ]);
+  });
+
+  test("sets the border of a field off from the card at 3:1 or more in both modes", () => {
+    for (const [mode, selector] of [
+      ["light", `${ROOT} .ztdl-input`],
+      ["light", `${ROOT} .ztdl-input:hover`],
+      ["dark", `${ROOT}.dark .ztdl-input`],
+      ["dark", `${ROOT}.dark .ztdl-input:hover`],
+    ] as const) {
+      const border = declarations(selector)["border-color"];
+      expect(contrast(channels(border, CARD[mode]), channels(CARD[mode])), selector).toBeGreaterThanOrEqual(3);
+    }
   });
 
   test("loads no webfont, as the wiki loads none", () => {

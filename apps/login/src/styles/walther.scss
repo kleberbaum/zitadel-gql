@@ -334,11 +334,14 @@ html[data-login-theme="walther"] {
     font-size: 1rem;
   }
 
-  // Inputs as the wiki's: a quiet border that turns brand blue with a ring
-  // on focus, and the wiki's error red while the field has an error.
+  // Inputs as the wiki's: a border that turns brand blue with a ring on
+  // focus, and the wiki's error red while the field has an error. The wiki
+  // draws the border in gray.200, which stands out from the card at 1.2:1
+  // only. The login takes gray.500 at 4.0:1, above the 3:1 that WCAG 1.4.11
+  // asks of the boundary of a field.
   .ztdl-input {
     padding-inline: 0.75rem;
-    border-color: map.get($gray, 300);
+    border-color: map.get($gray, 500);
     background-color: transparent;
 
     &:not(:disabled, [readonly]) {
@@ -346,7 +349,7 @@ html[data-login-theme="walther"] {
     }
 
     &:hover {
-      border-color: map.get($gray, 400);
+      border-color: map.get($gray, 600);
     }
 
     &:focus {
@@ -373,15 +376,17 @@ html[data-login-theme="walther"] {
     }
   }
 
+  // In dark mode white at 40% stands out from the card at 3.6:1, where the
+  // wiki's white at 16% reaches 1.7:1.
   &.dark .ztdl-input {
-    border-color: rgb(255 255 255 / 24%);
+    border-color: rgb(255 255 255 / 40%);
 
     &:not(:disabled, [readonly]) {
       color: $text-dark;
     }
 
     &:hover {
-      border-color: rgb(255 255 255 / 36%);
+      border-color: rgb(255 255 255 / 55%);
     }
 
     &:focus {
