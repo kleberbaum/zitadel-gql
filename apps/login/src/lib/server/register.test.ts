@@ -36,6 +36,7 @@ vi.mock("../zitadel", () => ({
   getLoginSettings: vi.fn(),
   getUserByID: vi.fn(),
   listAuthenticationMethodTypes: vi.fn(),
+  retrieveIDPIntent: vi.fn(),
 }));
 
 vi.mock("./cookie", () => ({
@@ -73,8 +74,24 @@ const idpCommand = {
   idpIntent: { idpIntentId: "intent-1", idpIntentToken: "intent-token-1" },
   idpUserId: "qes-sub-1",
   idpId: IDP_ID,
-  idpUserName: "",
 };
+
+function intentFor({
+  idpId = IDP_ID,
+  externalUserId = "qes-sub-1",
+  externalUserName = "",
+  userId = "",
+  profile = { givenName: "Erika", familyName: "Mustermann" } as { givenName?: string; familyName?: string },
+} = {}) {
+  return {
+    idpInformation: { idpId, userId: externalUserId, userName: externalUserName },
+    userId,
+    userAction: {
+      case: "createUser",
+      value: { userType: { case: "human", value: { profile, email: { email: "" } } } },
+    },
+  };
+}
 
 const session = {
   id: "session-1",
@@ -120,6 +137,7 @@ describe("registerUserAndLinkToIDP", () => {
     vi.mocked(zitadel.getActiveIdentityProviders).mockResolvedValue({
       identityProviders: [{ id: IDP_ID }],
     } as any);
+    vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor() as any);
     vi.mocked(zitadel.addHumanUser).mockResolvedValue({ userId: "user-1" } as any);
     vi.mocked(zitadel.addIDPLink).mockResolvedValue({} as any);
     vi.mocked(zitadel.listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
@@ -219,6 +237,93 @@ describe("registerUserAndLinkToIDP", () => {
       const result = await registerUserAndLinkToIDP(idpCommand);
 
       expect(result).toEqual({ error: "errors.couldNotGetLoginSettings" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the external identity and the names come from the intent (P3)", () => {
+    test("creates the account with the names of the intent, not the submitted ones", async () => {
+      const result = await registerUserAndLinkToIDP({ ...idpCommand, firstName: "Mallory", lastName: "Forged" });
+
+      expect(result).toEqual({ redirect: "https://wiki.example.com/callback" });
+      expect(zitadel.retrieveIDPIntent).toHaveBeenCalledWith({
+        serviceConfig: expect.anything(),
+        id: "intent-1",
+        token: "intent-token-1",
+      });
+      expect(zitadel.addHumanUser).toHaveBeenCalledWith({
+        serviceConfig: expect.anything(),
+        email: "person@example.com",
+        firstName: "Erika",
+        lastName: "Mustermann",
+        organization: ORG_ID,
+      });
+    });
+
+    test("takes a name from the form only where the provider sent none", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor({ profile: { givenName: "Erika" } }) as any);
+
+      await registerUserAndLinkToIDP({ ...idpCommand, firstName: "Mallory", lastName: "Musterfrau" });
+
+      expect(zitadel.addHumanUser).toHaveBeenCalledWith(
+        expect.objectContaining({ firstName: "Erika", lastName: "Musterfrau" }),
+      );
+    });
+
+    test("links the identity of the intent, named by the entered address when the provider sends no user name", async () => {
+      await registerUserAndLinkToIDP(idpCommand);
+
+      expect(zitadel.addIDPLink).toHaveBeenCalledWith({
+        serviceConfig: expect.anything(),
+        idp: { id: IDP_ID, userId: "qes-sub-1", userName: "person@example.com" },
+        userId: "user-1",
+      });
+    });
+
+    test("names the link with the provider's user name when it sends one", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor({ externalUserName: "erika.m" }) as any);
+
+      await registerUserAndLinkToIDP(idpCommand);
+
+      expect(zitadel.addIDPLink).toHaveBeenCalledWith(
+        expect.objectContaining({ idp: { id: IDP_ID, userId: "qes-sub-1", userName: "erika.m" } }),
+      );
+    });
+
+    test("refuses an intent of another external user", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor({ externalUserId: "qes-sub-2" }) as any);
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ error: "errors.couldNotLinkIDP" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+      expect(zitadel.addIDPLink).not.toHaveBeenCalled();
+    });
+
+    test("refuses an intent of another identity provider", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor({ idpId: "another-idp" }) as any);
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ error: "errors.couldNotLinkIDP" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("refuses an intent whose external identity belongs to an account already", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockResolvedValue(intentFor({ userId: "existing-user" }) as any);
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ error: "errors.couldNotLinkIDP" });
+      expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+    });
+
+    test("refuses when the intent cannot be read", async () => {
+      vi.mocked(zitadel.retrieveIDPIntent).mockRejectedValue(new Error("Errors.Intent.Expired"));
+
+      const result = await registerUserAndLinkToIDP(idpCommand);
+
+      expect(result).toEqual({ error: "errors.couldNotRegisterUser" });
       expect(zitadel.addHumanUser).not.toHaveBeenCalled();
     });
   });

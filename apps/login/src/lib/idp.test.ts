@@ -1,7 +1,7 @@
 import { IDPType } from "@zitadel/proto/zitadel/idp/v2/idp_pb";
 import { IdentityProviderType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
 import { describe, expect, it } from "vitest";
-import { idpTypeToIdentityProviderType, idpTypeToSlug } from "./idp";
+import { idpIntentNames, idpTypeToIdentityProviderType, idpTypeToSlug } from "./idp";
 
 describe("idp type mapping utilities", () => {
   describe("idpTypeToSlug", () => {
@@ -344,5 +344,68 @@ describe("idp type mapping utilities", () => {
       expect(() => idpTypeToSlug(null as any)).toThrow();
       expect(() => idpTypeToIdentityProviderType(null as any)).toThrow();
     });
+  });
+});
+
+describe("idpIntentNames", () => {
+  it("reads the names of the create_user action", () => {
+    const intent = {
+      userAction: {
+        case: "createUser",
+        value: {
+          userType: {
+            case: "human",
+            value: { profile: { givenName: "Erika", familyName: "Mustermann" } },
+          },
+        },
+      },
+    } as any;
+
+    expect(idpIntentNames(intent)).toEqual({ givenName: "Erika", familyName: "Mustermann" });
+  });
+
+  it("falls back to the deprecated add_human_user field of older API versions", () => {
+    const intent = {
+      addHumanUser: { profile: { givenName: "Erika", familyName: "Mustermann" } },
+    } as any;
+
+    expect(idpIntentNames(intent)).toEqual({ givenName: "Erika", familyName: "Mustermann" });
+  });
+
+  it("prefers the create_user action over add_human_user", () => {
+    const intent = {
+      userAction: {
+        case: "createUser",
+        value: {
+          userType: { case: "human", value: { profile: { givenName: "Erika", familyName: "Mustermann" } } },
+        },
+      },
+      addHumanUser: { profile: { givenName: "Other", familyName: "Person" } },
+    } as any;
+
+    expect(idpIntentNames(intent)).toEqual({ givenName: "Erika", familyName: "Mustermann" });
+  });
+
+  it("reports a name the provider did not send, or sent blank, as undefined", () => {
+    const intent = {
+      userAction: {
+        case: "createUser",
+        value: { userType: { case: "human", value: { profile: { givenName: "Erika", familyName: "  " } } } },
+      },
+    } as any;
+
+    expect(idpIntentNames(intent)).toEqual({ givenName: "Erika", familyName: undefined });
+    expect(idpIntentNames({} as any)).toEqual({ givenName: undefined, familyName: undefined });
+  });
+
+  it("reads no names from an intent for an existing user", () => {
+    const intent = {
+      userAction: {
+        case: "updateUser",
+        value: { userType: { case: "human", value: { profile: { givenName: "Erika", familyName: "Mustermann" } } } },
+      },
+    } as any;
+
+    expect(idpIntentNames(intent)).toEqual({ givenName: undefined, familyName: undefined });
   });
 });

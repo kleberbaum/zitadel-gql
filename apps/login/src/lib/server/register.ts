@@ -9,6 +9,7 @@ import {
   getLoginSettings,
   getUserByID,
   listAuthenticationMethodTypes,
+  retrieveIDPIntent,
   ServiceConfig,
 } from "@/lib/zitadel";
 import { Code, ConnectError, create, Duration } from "@zitadel/client";
@@ -20,6 +21,7 @@ import { getTranslations } from "next-intl/server";
 import { cookies, headers } from "next/headers";
 import { completeFlowOrGetUrl } from "../client";
 import { getOrSetFingerprintId } from "../fingerprint";
+import { idpIntentNames } from "../idp";
 import { createLogger } from "../logger";
 import { getServiceConfig } from "../service-url";
 import { checkEmailVerification, checkMFAFactors } from "../verify-helper";
@@ -201,6 +203,8 @@ export async function registerUser(
 
 type RegisterUserAndLinkToIDPommand = {
   email: string;
+  // The names are used only where the identity provider sent none, see
+  // registerUserAndLinkToIDP.
   firstName: string;
   lastName: string;
   organization: string;
@@ -211,7 +215,6 @@ type RegisterUserAndLinkToIDPommand = {
   };
   idpUserId: string;
   idpId: string;
-  idpUserName: string;
 };
 
 export type registerUserAndLinkToIDPResponse = {
@@ -290,20 +293,56 @@ export async function registerUserAndLinkToIDP(
     return { error: t("errors.registerNotAllowed") };
   }
 
+  // The intent is the trusted source of the external identity and of the
+  // names the provider sent, so it is read again here instead of believing
+  // the form. Reading it does not consume it, the session check below does.
+  // It has to be the intent the form was rendered for and must not belong to
+  // an account yet.
+  const intent = await retrieveIDPIntent({
+    serviceConfig,
+    id: command.idpIntent.idpIntentId,
+    token: command.idpIntent.idpIntentToken,
+  }).catch((error) => {
+    logger.error("Failed to read the IDP intent", { error });
+    return null;
+  });
+
+  if (!intent) {
+    return { error: t("errors.couldNotRegisterUser") };
+  }
+
+  const idpInformation = intent.idpInformation;
+
+  if (
+    !idpInformation ||
+    intent.userId ||
+    idpInformation.idpId !== command.idpId ||
+    idpInformation.userId !== command.idpUserId
+  ) {
+    return { error: t("errors.couldNotLinkIDP") };
+  }
+
+  // A name the provider sent is taken as sent, the form shows it read only.
+  // Only a name it did not send comes from the form.
+  const names = idpIntentNames(intent);
+
   const addUserResponse = await addHumanUser({
     serviceConfig,
     email: command.email,
-    firstName: command.firstName,
-    lastName: command.lastName,
+    firstName: names.givenName ?? command.firstName,
+    lastName: names.familyName ?? command.lastName,
     organization: command.organization,
   });
 
   const idpLink = await addIDPLink({
     serviceConfig,
     idp: {
-      id: command.idpId,
-      userId: command.idpUserId,
-      userName: command.idpUserName,
+      id: idpInformation.idpId,
+      userId: idpInformation.userId,
+      // Zitadel requires a user name on a link. A provider that sends no
+      // preferred_username (qes-oidc for ID Austria sends none) gets the
+      // address the person entered, which is the account's username as well.
+      userName: idpInformation.userName || command.email,
     },
     userId: addUserResponse.userId,
   });

@@ -19,7 +19,6 @@ type Inputs =
       firstname: string;
       lastname: string;
       email: string;
-      username?: string;
     }
   | FieldValues;
 
@@ -35,9 +34,17 @@ type Props = {
     lastname?: string;
     email?: string;
   };
+  /**
+   * The names the identity provider sent with the intent. A name given here
+   * is shown read only. The server action reads it from the intent again and
+   * ignores what the form submits for it.
+   */
+  idpNames?: {
+    givenName?: string;
+    familyName?: string;
+  };
   idpUserId: string;
   idpId: string;
-  idpUserName?: string;
 };
 
 export function RegisterFormIDPIncomplete({
@@ -45,16 +52,19 @@ export function RegisterFormIDPIncomplete({
   requestId,
   idpIntent,
   defaultValues,
+  idpNames,
   idpUserId,
   idpId,
-  idpUserName,
 }: Props) {
+  const firstnameFromIdp = !!idpNames?.givenName;
+  const lastnameFromIdp = !!idpNames?.familyName;
+
   const { register, handleSubmit, formState } = useForm<Inputs>({
     mode: "onChange",
     defaultValues: {
       email: defaultValues?.email ?? "",
-      firstname: defaultValues?.firstname ?? "",
-      lastname: defaultValues?.lastname ?? "",
+      firstname: idpNames?.givenName ?? defaultValues?.firstname ?? "",
+      lastname: idpNames?.familyName ?? defaultValues?.lastname ?? "",
     },
   });
 
@@ -70,7 +80,6 @@ export function RegisterFormIDPIncomplete({
     try {
       const response = await registerUserAndLinkToIDP({
         idpId: idpId,
-        idpUserName: idpUserName ? idpUserName : values.username,
         idpUserId: idpUserId,
         email: values.email,
         firstName: values.firstname,
@@ -95,26 +104,13 @@ export function RegisterFormIDPIncomplete({
       {samlData && <AutoSubmitForm url={samlData.url} fields={samlData.fields} />}
       <form className="w-full">
         <div className="mb-4 grid grid-cols-1 gap-4">
-          {!idpUserName && (
-            <div className="">
-              <TextInput
-                type="text"
-                autoComplete="username"
-                autoFocus
-                required
-                {...register("username", { required: "Username is required" })}
-                label="Username"
-                error={errors.username?.message as string}
-                data-testid="username-text-input"
-              />
-            </div>
-          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="">
               <TextInput
                 type="firstname"
                 autoComplete="firstname"
-                autoFocus={!!idpUserName}
+                autoFocus={!firstnameFromIdp}
+                readOnly={firstnameFromIdp}
                 required
                 {...register("firstname", { required: t("required.firstname") })}
                 label={t("labels.firstname")}
@@ -126,6 +122,8 @@ export function RegisterFormIDPIncomplete({
               <TextInput
                 type="lastname"
                 autoComplete="lastname"
+                autoFocus={firstnameFromIdp && !lastnameFromIdp}
+                readOnly={lastnameFromIdp}
                 required
                 {...register("lastname", { required: t("required.lastname") })}
                 label={t("labels.lastname")}
@@ -138,6 +136,7 @@ export function RegisterFormIDPIncomplete({
             <TextInput
               type="email"
               autoComplete="email"
+              autoFocus={firstnameFromIdp && lastnameFromIdp}
               required
               {...register("email", { required: t("required.email") })}
               label={t("labels.email")}

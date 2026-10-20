@@ -1,5 +1,7 @@
 import { IDPType } from "@zitadel/proto/zitadel/idp/v2/idp_pb";
 import { IdentityProviderType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
+import { SetHumanProfile } from "@zitadel/proto/zitadel/user/v2/user_pb";
+import { RetrieveIdentityProviderIntentResponse } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 
 // This maps the IdentityProviderType to a slug which is used in the /success and /failure routes
 export function idpTypeToSlug(idpType: IdentityProviderType) {
@@ -72,4 +74,29 @@ export function idpTypeToIdentityProviderType(idpType: IDPType): IdentityProvide
     default:
       throw new Error("Unknown identity provider type");
   }
+}
+
+/**
+ * The given and family name an identity provider sent for a person without
+ * an account yet, read from an IDP intent. Reads the `user_action.create_user`
+ * oneof and, for older API versions, the deprecated `add_human_user` field, in
+ * the order of resolveCreateUser in server/idp-intent.ts. A name the provider
+ * did not send, or sent blank, is undefined.
+ */
+export function idpIntentNames(intent: RetrieveIdentityProviderIntentResponse): {
+  givenName?: string;
+  familyName?: string;
+} {
+  let profile: SetHumanProfile | undefined;
+  if (intent.userAction?.case === "createUser") {
+    const userType = intent.userAction.value.userType;
+    profile = userType?.case === "human" ? userType.value.profile : undefined;
+  } else {
+    profile = intent.addHumanUser?.profile;
+  }
+
+  return {
+    givenName: profile?.givenName?.trim() ? profile.givenName : undefined,
+    familyName: profile?.familyName?.trim() ? profile.familyName : undefined,
+  };
 }

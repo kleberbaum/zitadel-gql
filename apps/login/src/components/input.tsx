@@ -58,6 +58,9 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
     // Use theme-based roundness if not explicitly provided
     const actualRoundness = roundness || getDefaultInputRoundness();
 
+    // A read-only field, like a name an identity provider sent, looks disabled
+    const looksDisabled = !!disabled || !!props.readOnly;
+
     return (
       <label className="text-12px text-input-light-label dark:text-input-dark-label relative flex flex-col">
         <span className={`mb-1 leading-3 ${error ? "text-warn-light-500 dark:text-warn-dark-500" : ""}`}>
@@ -66,7 +69,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
         <input
           suppressHydrationWarning
           ref={ref}
-          className={styles(!!error, !!disabled, actualRoundness)}
+          className={styles(!!error, looksDisabled, actualRoundness)}
           defaultValue={defaultValue}
           required={required}
           disabled={disabled}

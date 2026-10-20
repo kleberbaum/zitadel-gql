@@ -1,9 +1,11 @@
 import { DynamicTheme } from "@/components/dynamic-theme";
 import { RegisterFormIDPIncomplete } from "@/components/register-form-idp-incomplete";
 import { Translated } from "@/components/translated";
+import { idpIntentNames } from "@/lib/idp";
 import { getServiceConfig } from "@/lib/service-url";
-import { getBrandingSettings } from "@/lib/zitadel";
+import { getBrandingSettings, retrieveIDPIntent } from "@/lib/zitadel";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * Complete registration page - shown when manual user registration is required
@@ -13,7 +15,8 @@ export default async function CompleteRegistrationPage(props: {
   params: Promise<{ provider: string }>;
 }) {
   const searchParams = await props.searchParams;
-  const { id, token, requestId, organization, idpId, idpUserId, idpUserName, givenName, familyName, email } = searchParams;
+  const { provider } = await props.params;
+  const { id, token, requestId, organization, idpId, idpUserId, email, postErrorRedirectUrl } = searchParams;
 
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);
@@ -22,6 +25,27 @@ export default async function CompleteRegistrationPage(props: {
 
   if (!id || !token || !idpId || !organization || !idpUserId) {
     throw new Error("Missing required parameters");
+  }
+
+  // The names come from the intent itself, not from the query string, and
+  // are shown read only where the provider sent them. Reading the intent does
+  // not consume it. One that cannot be read (expired, or a wrong token)
+  // cannot complete a registration either, so the person is told so here
+  // rather than after filling in the form.
+  const intent = await retrieveIDPIntent({ serviceConfig, id, token }).catch((error) => {
+    console.warn("Could not read the IDP intent of the registration", error);
+    return undefined;
+  });
+
+  if (!intent) {
+    const failureParams = new URLSearchParams({ organization });
+    if (requestId) {
+      failureParams.set("requestId", requestId);
+    }
+    if (postErrorRedirectUrl) {
+      failureParams.set("postErrorRedirectUrl", postErrorRedirectUrl);
+    }
+    redirect(`/idp/${provider}/registration-failed?${failureParams}`);
   }
 
   return (
@@ -39,11 +63,9 @@ export default async function CompleteRegistrationPage(props: {
         <RegisterFormIDPIncomplete
           idpUserId={idpUserId}
           idpId={idpId}
-          idpUserName={idpUserName}
+          idpNames={idpIntentNames(intent)}
           defaultValues={{
             email: email || "",
-            firstname: givenName || "",
-            lastname: familyName || "",
           }}
           requestId={requestId}
           organization={organization}
