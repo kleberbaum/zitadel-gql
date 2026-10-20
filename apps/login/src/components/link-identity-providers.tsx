@@ -19,10 +19,11 @@ type Props = {
  * Upstream shows a warning there, "You have already setup an authenticator",
  * and a bare provider button below it, which reads like an error and hides
  * the one thing the page is good for on such an account: linking an identity
- * provider. This says in a neutral sentence that the account can sign in,
- * names each provider the account is linked with instead of offering it
- * again, and offers the others under a heading that says what the button
- * does, "Konto mit ID Austria verknüpfen" for a single provider.
+ * provider. The page heads it "Anmeldemethoden" and says in a neutral
+ * sentence that the account can sign in. Below that, this names each
+ * provider the account is linked with instead of offering it again, and
+ * offers the others under a heading that says what the button does, "Konto
+ * mit ID Austria verknüpfen" for a single provider.
  */
 export function LinkIdentityProviders({ identityProviders, linkedIdpIds, requestId, organization, sessionId }: Props) {
   const linked = identityProviders.filter((idp) => linkedIdpIds.includes(idp.id));
@@ -31,10 +32,6 @@ export function LinkIdentityProviders({ identityProviders, linkedIdpIds, request
 
   return (
     <div className="flex w-full flex-col space-y-6">
-      <p className="ztdl-p text-center" data-testid="account-ready">
-        <Translated i18nKey="accountReady" namespace="authenticator" />
-      </p>
-
       {linked.map((idp) => (
         <p
           key={idp.id}

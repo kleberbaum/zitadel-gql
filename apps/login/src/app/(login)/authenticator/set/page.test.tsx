@@ -14,7 +14,7 @@ import { cleanup, render } from "@testing-library/react";
 import { AuthenticationMethodType } from "@zitadel/proto/zitadel/user/v2/user_service_pb";
 import { redirect } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import Page from "./page";
+import Page, { generateMetadata } from "./page";
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(),
@@ -104,6 +104,10 @@ const session = {
 async function renderPage() {
   const element = await Page({ searchParams: Promise.resolve({}) });
   return render(element);
+}
+
+async function tabTitle() {
+  return (await generateMetadata({ searchParams: Promise.resolve({}) })).title;
 }
 
 describe("authenticator set page", () => {
@@ -202,6 +206,15 @@ describe("authenticator set page for an account that has an authenticator", () =
     expect(listIDPLinks).toHaveBeenCalledWith({ serviceConfig: expect.anything(), userId: "user-1" });
   });
 
+  test("heads the page with its sign-in methods instead of asking to choose one", async () => {
+    const { getByRole, getByText, queryByText } = await renderPage();
+
+    expect(getByRole("heading", { level: 1 })).toHaveTextContent(/^linkTitle$/);
+    expect(getByText("accountReady")).toBeInTheDocument();
+    expect(queryByText("description")).not.toBeInTheDocument();
+    expect(await tabTitle()).toBe("linkTitle");
+  });
+
   test("passes on the providers the account is linked with already", async () => {
     vi.mocked(listIDPLinks).mockResolvedValue({
       result: [{ idpId: "idp-id-austria", userId: "qes-subject", userName: "erika" }],
@@ -242,11 +255,20 @@ describe("authenticator set page for an account that has an authenticator", () =
   test("keeps upstream's choice of authenticators for an account without one", async () => {
     vi.mocked(listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
 
-    const { getByTestId, queryByTestId } = await renderPage();
+    const { getByRole, getByTestId, queryByTestId, queryByText } = await renderPage();
 
+    expect(getByRole("heading", { level: 1 })).toHaveTextContent(/^title$/);
+    expect(queryByText("accountReady")).not.toBeInTheDocument();
+    expect(await tabTitle()).toBe("title");
     expect(getByTestId("choose-authenticator")).toBeInTheDocument();
     expect(getByTestId("sign-in-with-idp")).toBeInTheDocument();
     expect(queryByTestId("link-identity-providers")).not.toBeInTheDocument();
     expect(listIDPLinks).not.toHaveBeenCalled();
+  });
+
+  test("keeps upstream's tab title when the session cannot be loaded", async () => {
+    vi.mocked(loadMostRecentSession).mockResolvedValue(undefined as any);
+
+    expect(await tabTitle()).toBe("title");
   });
 });

@@ -26,25 +26,20 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 const logger = createLogger("authenticator-set");
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("authenticator");
-  return { title: t("title") };
-}
+type SearchParams = Record<string | number | symbol, string | undefined>;
 
-export default async function Page(props: { searchParams: Promise<Record<string | number | symbol, string | undefined>> }) {
-  const searchParams = await props.searchParams;
-
-  const { loginName, requestId, organization, sessionId } = searchParams;
-
+/**
+ * The session the page is for, with the authentication methods of its user.
+ * Cached for the request, so the page and the title of its tab share one
+ * lookup.
+ */
+const loadSessionWithData = cache(async (sessionId?: string, loginName?: string, organization?: string) => {
   const _headers = await headers();
   const { serviceConfig } = getServiceConfig(_headers);
-
-  const sessionWithData = sessionId
-    ? await loadSessionById(sessionId, organization)
-    : await loadSessionByLoginname(loginName, organization);
 
   async function getAuthMethodsAndUser(session?: Session) {
     const userId = session?.factors?.user?.id;
@@ -91,6 +86,31 @@ export default async function Page(props: { searchParams: Promise<Record<string 
     const sessionResponse = await getSession({ serviceConfig, sessionId: recent.id, sessionToken: recent.token });
     return getAuthMethodsAndUser(sessionResponse.session);
   }
+
+  return sessionId ? loadSessionById(sessionId, organization) : loadSessionByLoginname(loginName, organization);
+});
+
+export async function generateMetadata(props: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
+  const t = await getTranslations("authenticator");
+  const { loginName, organization, sessionId } = await props.searchParams;
+
+  // The tab is named as the heading is. Should the lookup fail, the page
+  // reports it, and the tab keeps upstream's title.
+  const sessionWithData = await loadSessionWithData(sessionId, loginName, organization).catch(() => undefined);
+  const hasAuthenticator = !!sessionWithData && sessionWithData.authMethods.length !== 0;
+
+  return { title: t(hasAuthenticator ? "linkTitle" : "title") };
+}
+
+export default async function Page(props: { searchParams: Promise<SearchParams> }) {
+  const searchParams = await props.searchParams;
+
+  const { loginName, requestId, organization, sessionId } = searchParams;
+
+  const _headers = await headers();
+  const { serviceConfig } = getServiceConfig(_headers);
+
+  const sessionWithData = await loadSessionWithData(sessionId, loginName, organization);
 
   if (!sessionWithData || !sessionWithData.factors || !sessionWithData.factors.user) {
     return (
@@ -179,12 +199,15 @@ export default async function Page(props: { searchParams: Promise<Record<string 
   return (
     <DynamicTheme branding={branding}>
       <div className="flex flex-col space-y-4">
+        {/* An account that can sign in already has no method to choose. Its
+            heading names what the page shows it, its sign-in methods, and the
+            sentence below says that the account is set up. */}
         <h1>
-          <Translated i18nKey="title" namespace="authenticator" />
+          <Translated i18nKey={hasAuthenticator ? "linkTitle" : "title"} namespace="authenticator" />
         </h1>
 
         <p className="ztdl-p">
-          <Translated i18nKey="description" namespace="authenticator" />
+          <Translated i18nKey={hasAuthenticator ? "accountReady" : "description"} namespace="authenticator" />
         </p>
 
         <UserAvatar

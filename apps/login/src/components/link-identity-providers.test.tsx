@@ -24,13 +24,11 @@ function renderLinking(props: { identityProviders: any[]; linkedIdpIds: string[]
 describe("<LinkIdentityProviders />", () => {
   afterEach(cleanup);
 
-  test("says that the account can sign in, without an alert", () => {
+  test("neither warns that an authenticator is set up nor repeats the page's sentence", () => {
     renderLinking({ identityProviders: [idAustria], linkedIdpIds: [] });
 
-    expect(screen.getByTestId("account-ready")).toHaveTextContent(
-      "Ihr Konto ist eingerichtet. Sie können sich damit bereits anmelden.",
-    );
     expect(screen.queryByText(/bereits einen Authentifikator/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ihr Konto ist eingerichtet/)).not.toBeInTheDocument();
   });
 
   test("titles the section after the one provider and links it to the signed-in account", () => {
@@ -73,10 +71,10 @@ describe("<LinkIdentityProviders />", () => {
     expect(within(section).getByRole("button", { name: "GitHub" })).toBeInTheDocument();
   });
 
-  test("shows only the sentence when there is nothing to link", () => {
-    renderLinking({ identityProviders: [], linkedIdpIds: [] });
+  test("shows nothing when there is nothing to link", () => {
+    const { container } = renderLinking({ identityProviders: [], linkedIdpIds: [] });
 
-    expect(screen.getByTestId("account-ready")).toBeInTheDocument();
+    expect(container.textContent).toBe("");
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
@@ -84,9 +82,7 @@ describe("<LinkIdentityProviders />", () => {
   test("speaks English", () => {
     renderLinking({ identityProviders: [idAustria], linkedIdpIds: [] }, "en");
 
-    expect(screen.getByTestId("account-ready")).toHaveTextContent(
-      "Your account is set up. You can already sign in with it.",
-    );
-    expect(screen.getByRole("region", { name: "Link your account with ID Austria" })).toBeInTheDocument();
+    const section = screen.getByRole("region", { name: "Link your account with ID Austria" });
+    expect(within(section).getByText("Afterwards you can also sign in with ID Austria.")).toBeInTheDocument();
   });
 });

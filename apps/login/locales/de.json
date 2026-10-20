@@ -424,6 +424,7 @@
     "noMethodsAvailable": "Keine Authentifizierungsmethoden verfügbar",
     "allSetup": "Sie haben bereits einen Authentifikator eingerichtet!",
     "linkWithIDP": "oder verknüpfe mit einem Identitätsanbieter",
+    "linkTitle": "Anmeldemethoden",
     "accountReady": "Ihr Konto ist eingerichtet. Sie können sich damit bereits anmelden.",
     "alreadyLinked": "Ihr Konto ist bereits mit {provider} verknüpft.",
     "linkIdpTitle": "Konto mit {provider} verknüpfen",

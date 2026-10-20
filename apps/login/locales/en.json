@@ -424,6 +424,7 @@
     "noMethodsAvailable": "No authentication methods available",
     "allSetup": "You have already setup an authenticator!",
     "linkWithIDP": "or link with an Identity Provider",
+    "linkTitle": "Sign-in methods",
     "accountReady": "Your account is set up. You can already sign in with it.",
     "alreadyLinked": "Your account is already linked with {provider}.",
     "linkIdpTitle": "Link your account with {provider}",
