@@ -49,6 +49,7 @@ export class HumanUser implements UserFields {
     preferredLanguage?: string
     displayName?: string
     email?: string
+    isEmailVerified: boolean
     phone?: string
     firstName?: string
     lastName?: string
@@ -71,6 +72,7 @@ export class HumanUser implements UserFields {
     preferredLanguage?: string
     displayName?: string
     email?: string
+    isEmailVerified?: boolean
     phone?: string
     firstName?: string
     lastName?: string
@@ -101,6 +103,7 @@ export class HumanUser implements UserFields {
       preferredLanguage: base.preferredLanguage,
       displayName: base.displayName,
       email: base.email,
+      isEmailVerified: base.isEmailVerified ?? false,
       phone: base.phone,
       firstName: base.firstName,
       lastName: base.lastName,
@@ -151,6 +154,7 @@ export class HumanUser implements UserFields {
       preferredLanguage: this._profileBase.preferredLanguage,
       displayName: this._profileBase.displayName,
       email: this._profileBase.email,
+      isEmailVerified: this._profileBase.isEmailVerified,
       phone: this._profileBase.phone,
       firstName: this._profileBase.firstName,
       lastName: this._profileBase.lastName,

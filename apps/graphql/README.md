@@ -182,6 +182,13 @@ cannot see but does not return them, so `totalCount` can exceed the edges.
 
 The list caches are per request and unchanged.
 
+## Profiles
+
+The profile node of a human user carries `isEmailVerified` next to `email`,
+Zitadel's `is_verified` of the human email: true once the user entered the
+code, or when the address was created verified. The user read answers it,
+it costs no call of its own.
+
 ## Links to identity providers
 
 `idpLinks` on a user lists the user's links to external identity providers:

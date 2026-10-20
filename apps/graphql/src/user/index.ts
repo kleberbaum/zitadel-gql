@@ -176,6 +176,7 @@ function toUserModel(z: ProtoUser, grants?: ZitadelUserGrant[] | GrantsLoader): 
     preferredLanguage: profile?.preferredLanguage || undefined,
     displayName,
     email: emailObj?.email || undefined,
+    isEmailVerified: emailObj?.isVerified ?? false,
     phone: phoneObj?.phone || undefined,
     firstName: firstName || undefined,
     lastName: lastName || undefined,

@@ -74,6 +74,11 @@ export interface UserProfileNode extends Node {
   preferredLanguage?: string
   displayName?: string
   email?: string
+  /**
+   * Whether the user proved control of `email`, by a code or because the
+   * address was created verified. Zitadel's human email `is_verified`.
+   */
+  isEmailVerified: boolean
   phone?: string
   firstName?: string
   lastName?: string

@@ -118,6 +118,14 @@ describe('pylon build artifacts', () => {
     expect(schema).not.toMatch(/type UserNode implements/)
   })
 
+  test('a profile says whether its email address is verified', () => {
+    const schema = readFileSync(join(pylonDir, 'schema.graphql'), 'utf8')
+    const profile = schema.match(/type UserProfileNode implements [^{]*\{([^}]*)\}/)?.[1] ?? ''
+
+    expect(profile).toContain('email: String')
+    expect(profile).toContain('isEmailVerified: Boolean!')
+  })
+
   test('users carry idpLinks, the external identities as IDPLinkNode', () => {
     const schema = readFileSync(join(pylonDir, 'schema.graphql'), 'utf8')
     const body = (pattern: RegExp) => schema.match(pattern)?.[1] ?? ''

@@ -68,10 +68,11 @@ export function resetZitadel() {
 
 /**
  * Runs fn the way a resolver runs, inside a request whose bearer token is
- * the given one and whose caller counts as signed in for requireAuth.
+ * the given one and whose caller counts as signed in for requireAuth, unless
+ * signedIn is false.
  */
-export function inRequest<T>(token: string, fn: () => Promise<T>): Promise<T> {
-  const store = new Map<string, unknown>([['auth', {user: {sub: 'caller'}}]])
+export function inRequest<T>(token: string, fn: () => Promise<T>, {signedIn = true} = {}): Promise<T> {
+  const store = new Map<string, unknown>(signedIn ? [['auth', {user: {sub: 'caller'}}]] : [])
   const ctx = {
     req: {
       header: (name: string) => (name.toLowerCase() === 'authorization' ? `Bearer ${token}` : undefined)
