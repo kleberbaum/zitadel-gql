@@ -285,7 +285,7 @@
     },
     "set": {
       "title": "Setup a passkey",
-      "description": "Use your phone or a security key such as a YubiKey. On a computer, scan the QR code with your phone (Bluetooth must be on) or insert the security key.",
+      "description": "Your device will ask for your fingerprint, face, or screen lock",
       "info": {
         "description": "A passkey is an authentication method on a device like your fingerprint, Apple FaceID or similar. ",
         "link": "Passkey Authentication"
@@ -293,7 +293,7 @@
       "skip": "Skip",
       "submit": "Continue",
       "errors": {
-        "cancelled": "The passkey was not created. The dialog was cancelled or timed out. Please try again with your phone (scan the QR code, Bluetooth on both devices) or a security key such as a YubiKey. You can also open this page on your phone directly, or go back and register with ID Austria instead.",
+        "cancelled": "The passkey was not created. The dialog was cancelled or timed out, or this device cannot store a passkey. Please try again. In the dialog you can also use a phone or a security key. Or go back and register with ID Austria instead.",
         "exists": "This device already holds a passkey for this account. Please sign in with it instead.",
         "failed": "This browser could not create a passkey. Please try again in a current Chrome, Edge, Safari or Firefox, or go back and register with ID Austria instead."
       }
