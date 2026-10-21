@@ -285,7 +285,7 @@
     },
     "set": {
       "title": "Passkey einrichten",
-      "description": "Ihr Gerät wird nach Ihrem Fingerabdruck, Gesicht oder Bildschirmsperre fragen",
+      "description": "Verwenden Sie Ihr Handy oder einen Sicherheitsschlüssel wie einen YubiKey. Am Computer scannen Sie den QR-Code mit dem Handy (Bluetooth muss eingeschaltet sein) oder stecken den Sicherheitsschlüssel an.",
       "info": {
         "description": "Ein Passkey ist eine Authentifizierungsmethode auf einem Gerät wie Ihr Fingerabdruck, Apple FaceID oder ähnliches.",
         "link": "Passkey-Authentifizierung"
@@ -293,7 +293,7 @@
       "skip": "Überspringen",
       "submit": "Weiter",
       "errors": {
-        "cancelled": "Der Passkey wurde nicht angelegt. Der Dialog wurde abgebrochen oder ist abgelaufen, oder dieses Gerät kann keinen Passkey speichern. Bitte versuchen Sie es erneut. Im Dialog können Sie auch ein Handy oder einen Sicherheitsschlüssel verwenden. Oder gehen Sie zurück und registrieren Sie sich mit ID Austria.",
+        "cancelled": "Der Passkey wurde nicht angelegt. Der Dialog wurde abgebrochen oder ist abgelaufen. Bitte versuchen Sie es erneut mit Ihrem Handy (QR-Code scannen, Bluetooth an beiden Geräten) oder einem Sicherheitsschlüssel wie einem YubiKey. Sie können diese Seite auch direkt am Handy öffnen oder zurückgehen und sich mit ID Austria registrieren.",
         "exists": "Auf diesem Gerät gibt es schon einen Passkey für dieses Konto. Bitte melden Sie sich damit an.",
         "failed": "Dieser Browser konnte keinen Passkey anlegen. Bitte versuchen Sie es erneut in einem aktuellen Chrome, Edge, Safari oder Firefox, oder gehen Sie zurück und registrieren Sie sich mit ID Austria."
       }

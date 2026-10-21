@@ -1,6 +1,7 @@
 "use client";
 
 import { coerceToArrayBuffer, coerceToBase64Url } from "@/helpers/base64";
+import { restrictToPhoneOrSecurityKey } from "@/helpers/passkey-devices";
 import { registerPasskeyLink, verifyPasskeyRegistration } from "@/lib/server/passkeys";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -168,6 +169,8 @@ export function RegisterPasskey({
     // device has no authenticator it may use, or when the device already
     // holds a passkey of this account. Without an answer here the button
     // would look dead, so each case says what to do next.
+    options.publicKey = restrictToPhoneOrSecurityKey(options.publicKey, navigator);
+
     let credentials: Credential | null;
     try {
       credentials = await navigator.credentials.create(options);
