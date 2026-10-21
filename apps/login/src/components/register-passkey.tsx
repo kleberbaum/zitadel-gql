@@ -2,6 +2,7 @@
 
 import { coerceToArrayBuffer, coerceToBase64Url } from "@/helpers/base64";
 import { registerPasskeyLink, verifyPasskeyRegistration } from "@/lib/server/passkeys";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -37,6 +38,8 @@ export function RegisterPasskey({
   const { handleSubmit, formState } = useForm<Inputs>({
     mode: "onChange",
   });
+
+  const t = useTranslations("passkey");
 
   const [error, setError] = useState<string>("");
 
@@ -161,7 +164,27 @@ export function RegisterPasskey({
       });
     }
 
-    const credentials = await navigator.credentials.create(options);
+    // The browser rejects when the person cancels its dialog, when the
+    // device has no authenticator it may use, or when the device already
+    // holds a passkey of this account. Without an answer here the button
+    // would look dead, so each case says what to do next.
+    let credentials: Credential | null;
+    try {
+      credentials = await navigator.credentials.create(options);
+    } catch (createError) {
+      console.error("passkey creation failed", createError);
+      const name = createError instanceof Error ? createError.name : "";
+      setError(
+        t(
+          name === "NotAllowedError"
+            ? "set.errors.cancelled"
+            : name === "InvalidStateError"
+              ? "set.errors.exists"
+              : "set.errors.failed",
+        ),
+      );
+      return;
+    }
 
     if (
       !credentials ||
@@ -195,7 +218,7 @@ export function RegisterPasskey({
     }
 
     continueAndLogin(verificationResponse.loginName);
-  }, [sessionId, userId, code, codeId, continueAndLogin]);
+  }, [sessionId, userId, code, codeId, continueAndLogin, t]);
 
   // Auto-submit when code is provided (similar to VerifyForm)
   useEffect(() => {

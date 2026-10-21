@@ -290,7 +290,12 @@
         "link": "Автентифікація за допомогою ключа доступу"
       },
       "skip": "Пропустити",
-      "submit": "Продовжити"
+      "submit": "Продовжити",
+      "errors": {
+        "cancelled": "The passkey was not created. The dialog was cancelled or timed out, or this device cannot store a passkey. Please try again. In the dialog you can also use a phone or a security key. Or go back and register with ID Austria instead.",
+        "exists": "This device already holds a passkey for this account. Please sign in with it instead.",
+        "failed": "This browser could not create a passkey. Please try again in a current Chrome, Edge, Safari or Firefox, or go back and register with ID Austria instead."
+      }
     }
   },
   "u2f": {
