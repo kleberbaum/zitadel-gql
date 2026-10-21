@@ -1,4 +1,5 @@
 import { PasskeysType } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
+import { UserState } from "@zitadel/proto/zitadel/user/v2/user_pb";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { registerUser, registerUserAndLinkToIDP } from "./register";
 
@@ -37,6 +38,7 @@ vi.mock("../zitadel", () => ({
   getLoginSettings: vi.fn(),
   getUserByID: vi.fn(),
   listAuthenticationMethodTypes: vi.fn(),
+  listIDPLinks: vi.fn(),
   listUsersByLoginNameOrEmail: vi.fn(),
   retrieveIDPIntent: vi.fn(),
 }));
@@ -545,6 +547,101 @@ describe("registerUser", () => {
       expect(result).toEqual({ error: "errors.couldNotCreateUser" });
       expect(zitadel.addHumanUser).not.toHaveBeenCalled();
       expect(cookie.createSessionAndUpdateCookie).not.toHaveBeenCalled();
+    });
+
+    describe("an account an earlier attempt left without a passkey", () => {
+      function unfinished(overrides: Record<string, unknown> = {}, email: Record<string, unknown> = {}) {
+        return {
+          userId: "unfinished-1",
+          state: UserState.ACTIVE,
+          details: { resourceOwner: ORG_ID },
+          type: { case: "human", value: { email: { email: "person@example.com", isVerified: false, ...email } } },
+          ...overrides,
+        };
+      }
+
+      beforeEach(() => {
+        vi.mocked(zitadel.listUsersByLoginNameOrEmail).mockResolvedValue({ result: [unfinished()] } as any);
+        vi.mocked(zitadel.listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [] } as any);
+        vi.mocked(zitadel.listIDPLinks).mockResolvedValue({ result: [] } as any);
+      });
+
+      test("is taken up again: a session for it and on to /passkey/set, no second account", async () => {
+        const result = await registerUser({ ...passkeyCommand, email: "Person@Example.com" });
+
+        expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+        expect(cookie.createSessionAndUpdateCookie).toHaveBeenCalledWith({
+          checks: { user: { search: { case: "userId", value: "unfinished-1" } } },
+          requestId: "oidc_request",
+          lifetime: undefined,
+        });
+        expect((result as { redirect: string }).redirect).toMatch(/^\/passkey\/set\?/);
+      });
+
+      test.each([
+        [
+          "with a way to sign in",
+          () => vi.mocked(zitadel.listAuthenticationMethodTypes).mockResolvedValue({ authMethodTypes: [1] } as any),
+        ],
+        [
+          "linked to an identity provider",
+          () => vi.mocked(zitadel.listIDPLinks).mockResolvedValue({ result: [{ idpId: "idp" }] } as any),
+        ],
+        [
+          "whose sign-in methods cannot be read",
+          () => vi.mocked(zitadel.listAuthenticationMethodTypes).mockRejectedValue(new Error("down")),
+        ],
+        [
+          "with a confirmed address",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished({}, { isVerified: true })] } as any),
+        ],
+        [
+          "of another organization",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished({ details: { resourceOwner: "other-org" } })] } as any),
+        ],
+        [
+          "that is deactivated",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished({ state: UserState.INACTIVE })] } as any),
+        ],
+        [
+          "whose email address is another one",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished({}, { email: "other@example.com" })] } as any),
+        ],
+        [
+          "next to a second account with the address",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished(), unfinished({ userId: "unfinished-2" })] } as any),
+        ],
+        [
+          "that is a machine",
+          () =>
+            vi
+              .mocked(zitadel.listUsersByLoginNameOrEmail)
+              .mockResolvedValue({ result: [unfinished({ type: { case: "machine", value: {} } })] } as any),
+        ],
+      ])("is not taken up %s, the address stays taken", async (_case, arrange) => {
+        arrange();
+
+        const result = await registerUser(passkeyCommand);
+
+        expect(result).toEqual({ error: "errors.couldNotCreateUser" });
+        expect(zitadel.addHumanUser).not.toHaveBeenCalled();
+        expect(cookie.createSessionAndUpdateCookie).not.toHaveBeenCalled();
+      });
     });
 
     test("refuses when the address cannot be looked up", async () => {

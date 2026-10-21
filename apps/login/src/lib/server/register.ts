@@ -9,6 +9,7 @@ import {
   getLoginSettings,
   getUserByID,
   listAuthenticationMethodTypes,
+  listIDPLinks,
   listUsersByLoginNameOrEmail,
   retrieveIDPIntent,
   ServiceConfig,
@@ -17,6 +18,7 @@ import { Code, ConnectError, create, Duration } from "@zitadel/client";
 import { Factors } from "@zitadel/proto/zitadel/session/v2/session_pb";
 import { Checks, ChecksJson, ChecksSchema } from "@zitadel/proto/zitadel/session/v2/session_service_pb";
 import { LoginSettings } from "@zitadel/proto/zitadel/settings/v2/login_settings_pb";
+import { User, UserState } from "@zitadel/proto/zitadel/user/v2/user_pb";
 import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import { cookies, headers } from "next/headers";
@@ -60,17 +62,71 @@ async function createSessionWithRetry(command: { checks: Checks; requestId: stri
 }
 
 /**
- * Whether an account of any organization has the address as a login name or
- * as its email address. An address that cannot be looked up counts as taken.
+ * The accounts of any organization that have the address as a login name or
+ * as their email address, undefined when the address cannot be looked up.
  */
-async function isAddressTaken({ serviceConfig, address }: { serviceConfig: ServiceConfig; address: string }) {
+async function accountsWithAddress({ serviceConfig, address }: { serviceConfig: ServiceConfig; address: string }) {
   // Zitadel trims the username, so the address is looked up as it is stored.
   const response = await listUsersByLoginNameOrEmail({ serviceConfig, address: address.trim() }).catch((error) => {
     logger.error("Failed to look up the address of a registration", { error });
     return undefined;
   });
 
-  return !response || response.result.length > 0;
+  return response?.result;
+}
+
+/**
+ * The account an earlier registration with a passkey left unfinished under
+ * this address, or undefined. Zitadel creates the account before the browser
+ * makes the passkey, so a cancelled or failed passkey dialog leaves an
+ * account nobody can sign in to, and the address would stay taken for good.
+ *
+ * Such an account is taken up again only when nothing in it belongs to
+ * anybody yet: the one account with the address, a human of this
+ * organization, active, its email address unconfirmed, without any way to
+ * sign in (no password, passkey or other factor) and without a linked
+ * identity provider. Taking it up gives nobody more than registering the
+ * address anew would, and the email code after the passkey still decides
+ * who owns the address.
+ */
+async function unfinishedPasskeyAccount({
+  serviceConfig,
+  accounts,
+  address,
+  organization,
+}: {
+  serviceConfig: ServiceConfig;
+  accounts: User[];
+  address: string;
+  organization: string;
+}): Promise<string | undefined> {
+  if (accounts.length !== 1) return undefined;
+
+  const [account] = accounts;
+  if (account.type?.case !== "human") return undefined;
+  if (account.state !== UserState.ACTIVE) return undefined;
+  if (account.details?.resourceOwner !== organization) return undefined;
+
+  const email = account.type.value.email;
+  if (!email || email.isVerified || email.email.trim().toLowerCase() !== address.trim().toLowerCase()) {
+    return undefined;
+  }
+
+  const [methods, links] = await Promise.all([
+    listAuthenticationMethodTypes({ serviceConfig, userId: account.userId }).catch((error) => {
+      logger.error("Failed to read the sign-in methods of an unfinished registration", { error });
+      return undefined;
+    }),
+    listIDPLinks({ serviceConfig, userId: account.userId }).catch((error) => {
+      logger.error("Failed to read the identity providers of an unfinished registration", { error });
+      return undefined;
+    }),
+  ]);
+
+  if (!methods || methods.authMethodTypes.length > 0) return undefined;
+  if (!links || links.result.length > 0) return undefined;
+
+  return account.userId;
 }
 
 type RegisterUserCommand = {
@@ -114,25 +170,50 @@ export async function registerUser(
   // login name or as its email address. The owner's sign-in with that address
   // would otherwise find the new account instead of theirs, or both. The
   // answer is the one a taken username gets.
-  if (!loginSettings.allowRegister && (await isAddressTaken({ serviceConfig, address: command.email }))) {
-    return { error: t("errors.couldNotCreateUser") };
+  // An address whose account an earlier attempt left without a passkey is
+  // the exception: that account is taken up again, see
+  // unfinishedPasskeyAccount.
+  let unfinishedUserId: string | undefined;
+  if (!loginSettings.allowRegister) {
+    const accounts = await accountsWithAddress({ serviceConfig, address: command.email });
+
+    if (!accounts) {
+      return { error: t("errors.couldNotCreateUser") };
+    }
+
+    if (accounts.length > 0) {
+      unfinishedUserId = await unfinishedPasskeyAccount({
+        serviceConfig,
+        accounts,
+        address: command.email,
+        organization: command.organization,
+      });
+
+      if (!unfinishedUserId) {
+        return { error: t("errors.couldNotCreateUser") };
+      }
+
+      logger.info("Taking up an unfinished registration with a passkey", { userId: unfinishedUserId });
+    }
   }
 
   if (command.password && !loginSettings.allowLocalAuthentication) {
     return { error: t("errors.localAuthenticationNotAllowed") };
   }
 
-  const addResponse = await addHumanUser({
-    serviceConfig,
-    email: command.email,
-    firstName: command.firstName,
-    lastName: command.lastName,
-    password: command.password ? command.password : undefined,
-    organization: command.organization,
-  }).catch((error) => {
-    logger.error("Failed to create user", { error });
-    return null;
-  });
+  const addResponse = unfinishedUserId
+    ? { userId: unfinishedUserId }
+    : await addHumanUser({
+        serviceConfig,
+        email: command.email,
+        firstName: command.firstName,
+        lastName: command.lastName,
+        password: command.password ? command.password : undefined,
+        organization: command.organization,
+      }).catch((error) => {
+        logger.error("Failed to create user", { error });
+        return null;
+      });
 
   if (!addResponse) {
     return { error: t("errors.couldNotCreateUser") };
